@@ -1,0 +1,268 @@
+@import "tailwindcss";
+
+/*
+ * Дизайн-система «Тушь и огонь».
+ * Это единственное место, где разрешены «сырые» значения цветов и размеров.
+ * В компонентах используем только утилиты, построенные на этих токенах
+ * (проверяется скриптом scripts/check-tokens.mjs).
+ */
+
+@theme {
+  /* Сбрасываем стандартные палитры и шкалы Tailwind: в коде доступны только наши токены. */
+  --color-*: initial;
+  --font-*: initial;
+  --text-*: initial;
+  --radius-*: initial;
+  --shadow-*: initial;
+  --tracking-*: initial;
+  --leading-*: initial;
+  --font-weight-*: initial;
+  --container-*: initial;
+  --animate-*: initial;
+
+  /* ---------- Палитра ---------- */
+  --color-ink: #14110f; /* основной фон */
+  --color-coal: #1f1b18; /* карточки, корзина, поля */
+  --color-ash: #332d28; /* разделители, обводки */
+  --color-paper: #f4ede1; /* текст на тёмном, фон светлых секций */
+  --color-sesame: #a39b90; /* вторичный текст на тёмном */
+  --color-cinnabar: #d9381e; /* действия */
+  --color-ginger: #e0a43a; /* «Хит», рейтинги, бонусы, метки над заголовками */
+  --color-matcha: #7a9a5b; /* «Веган», «Доставлен», успех */
+  --color-white: #ffffff;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  /* Доступные оттенки (WCAG AA ≥ 4,5:1), подобраны рядом с исходными. */
+  --color-cinnabar-glow: #e8553a; /* текст-акцент на ink/coal */
+  --color-cinnabar-deep: #ba2e18; /* текст-акцент на paper/white, hover кнопок */
+  --color-ginger-deep: #8a5a12; /* метки над заголовками на paper */
+  --color-matcha-deep: #52703a; /* успех на paper */
+  --color-stone: #6b6259; /* вторичный текст на paper/white */
+  --color-smoke: #756c63; /* обводка полей на тёмном (≥ 3:1) */
+  --color-sand: #8c8172; /* обводка полей на светлом (≥ 3:1) */
+  --color-linen: #ebe2d3; /* вторичная светлая поверхность (админка) */
+  --color-shade: rgb(20 17 15 / 0.72); /* затемнение под фото и шторками */
+
+  /* ---------- Шрифты ---------- */
+  --font-display: var(--font-dela), "Arial Black", sans-serif;
+  --font-sans: var(--font-golos), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-kanji: var(--font-noto-jp), serif;
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+
+  /* ---------- Шкала текста (плавная от 375 до 1440 px) ---------- */
+  --text-display: clamp(2.25rem, 1.4rem + 3.8vw, 4.5rem);
+  --text-display--line-height: 1.04;
+  --text-h1: clamp(2rem, 1.5rem + 2.4vw, 3.5rem);
+  --text-h1--line-height: 1.08;
+  --text-h2: clamp(1.75rem, 1.35rem + 1.7vw, 2.75rem);
+  --text-h2--line-height: 1.12;
+  --text-h3: clamp(1.25rem, 1.1rem + 0.6vw, 1.5rem);
+  --text-h3--line-height: 1.2;
+  --text-lead: clamp(1.0625rem, 1rem + 0.3vw, 1.25rem);
+  --text-lead--line-height: 1.5;
+  --text-title: 1.125rem; /* названия блюд, заголовки карточек */
+  --text-title--line-height: 1.33;
+  --text-price: 1.25rem;
+  --text-price--line-height: 1.2;
+  --text-base: 1rem;
+  --text-base--line-height: 1.5;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.43;
+  --text-xs: 0.8125rem; /* 13 px — метки над заголовками */
+  --text-xs--line-height: 1.38;
+  --text-2xs: 0.75rem; /* 12 px — бейджи */
+  --text-2xs--line-height: 1.33;
+  --text-kanji: clamp(12rem, 6rem + 26vw, 30rem);
+  --text-kanji--line-height: 1;
+
+  --tracking-eyebrow: 0.12em;
+  --tracking-tight: -0.01em;
+  --leading-tight: 1.15;
+  --leading-normal: 1.5;
+
+  /* ---------- Сетка ---------- */
+  --spacing: 0.5rem; /* 1 единица = 8 px: p-1 = 8 px, p-2 = 16 px … */
+  --container-site: 75rem; /* 1200 px */
+  --container-prose: 40rem;
+  --container-narrow: 30rem;
+
+  --radius-card: 1rem; /* 16 px */
+  --radius-field: 0.75rem;
+  --radius-sm: 0.5rem;
+  --radius-xs: 0.375rem;
+
+  --shadow-bar: 0 -8px 24px rgb(0 0 0 / 0.4);
+  --shadow-pop: 0 16px 40px rgb(0 0 0 / 0.45);
+  --shadow-soft: 0 8px 24px rgb(20 17 15 / 0.08);
+
+  /* ---------- Движение ---------- */
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.45, 0, 0.25, 1);
+  --animate-bump: bump 250ms var(--ease-out);
+  --animate-spin: spin 800ms linear infinite;
+  --animate-pulse: pulse 1.6s var(--ease-in-out) infinite;
+
+  @keyframes bump {
+    0% {
+      transform: scale(1);
+    }
+    40% {
+      transform: scale(1.3);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+  @keyframes pulse {
+    50% {
+      opacity: 0.5;
+    }
+  }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+}
+
+/*
+ * Семантические токены: одинаковые имена на тёмных и светлых поверхностях.
+ * Светлая поверхность включается классом .theme-light (секции «История», «Отзывы», админка).
+ */
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-eyebrow: var(--eyebrow);
+  --color-accent: var(--accent);
+  --color-success: var(--success);
+  --color-action: var(--color-cinnabar);
+  --color-action-hover: var(--color-cinnabar-deep);
+  --color-on-action: var(--color-white);
+  --color-focus: var(--focus);
+}
+
+:root {
+  --canvas: var(--color-ink);
+  --surface: var(--color-coal);
+  --surface-2: var(--color-ash);
+  --line: var(--color-ash);
+  --line-strong: var(--color-smoke);
+  --fg: var(--color-paper);
+  --fg-muted: var(--color-sesame);
+  --eyebrow: var(--color-ginger);
+  --accent: var(--color-cinnabar-glow);
+  --success: var(--color-matcha);
+  --focus: var(--color-ginger);
+  color-scheme: dark;
+}
+
+.theme-light {
+  --canvas: var(--color-paper);
+  --surface: var(--color-white);
+  --surface-2: var(--color-linen);
+  --line: var(--color-linen);
+  --line-strong: var(--color-sand);
+  --fg: var(--color-ink);
+  --fg-muted: var(--color-stone);
+  --eyebrow: var(--color-ginger-deep);
+  --accent: var(--color-cinnabar-deep);
+  --success: var(--color-matcha-deep);
+  --focus: var(--color-ginger-deep);
+  color-scheme: light;
+  color: var(--fg);
+}
+
+.theme-dark {
+  --canvas: var(--color-ink);
+  --surface: var(--color-coal);
+  --surface-2: var(--color-ash);
+  --line: var(--color-ash);
+  --line-strong: var(--color-smoke);
+  --fg: var(--color-paper);
+  --fg-muted: var(--color-sesame);
+  --eyebrow: var(--color-ginger);
+  --accent: var(--color-cinnabar-glow);
+  --success: var(--color-matcha);
+  --focus: var(--color-ginger);
+  color-scheme: dark;
+  color: var(--fg);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-padding-top: 8rem;
+  }
+
+  body {
+    background-color: var(--canvas);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--text-base--line-height);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background-color: var(--color-ginger);
+    color: var(--color-ink);
+  }
+
+  /* Цвет обводки задан заранее, чтобы transition-colors не «проявлял» фокус из currentColor. */
+  :where(a, button, input, select, textarea, summary, [tabindex]) {
+    outline-color: var(--focus);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+}
+
+/* Появление секций при прокрутке. Без JS и при reduced-motion контент виден сразу. */
+@layer components {
+  .js-reveal [data-reveal]:not([data-revealed]) {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  .js-reveal [data-reveal] {
+    transition:
+      opacity 250ms var(--ease-out),
+      transform 250ms var(--ease-out);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .js-reveal [data-reveal]:not([data-revealed]) {
+    opacity: 1;
+    transform: none;
+  }
+}

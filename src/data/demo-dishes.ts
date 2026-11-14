@@ -1,0 +1,75 @@
+import type { DishCardData } from "@/types/dish";
+
+/**
+ * Демо-блюда для витрины компонентов и главной до подключения базы (этап 3).
+ * Цены в копейках, фото пока нет — показываются заглушки.
+ */
+export const demoDishes: DishCardData[] = [
+  {
+    id: "d1",
+    slug: "tonkotsu-ramen",
+    name: "Тонкоцу рамен",
+    description: "Свиной бульон 12 часов, чашу, маринованное яйцо, нори, зелёный лук.",
+    portion: "480 г",
+    price: 69_000,
+    kanji: "麺",
+    isHit: true,
+    spiciness: 0,
+  },
+  {
+    id: "d2",
+    slug: "wok-beef-black-pepper",
+    name: "Вок с говядиной и чёрным перцем",
+    description: "Мраморная говядина, удон, сладкий перец, соус на чёрном перце с огня.",
+    portion: "380 г",
+    price: 64_000,
+    kanji: "鍋",
+    isHit: true,
+    spiciness: 2,
+  },
+  {
+    id: "d3",
+    slug: "bao-pork-belly",
+    name: "Бао со свиной грудинкой",
+    description: "Паровая булочка, томлёная грудинка, огурец, хойсин, арахис.",
+    portion: "2 шт · 220 г",
+    price: 49_000,
+    oldPrice: 56_000,
+    kanji: "包",
+    isNew: true,
+    spiciness: 1,
+  },
+  {
+    id: "d4",
+    slug: "har-gow",
+    name: "Хар гоу с креветкой",
+    description: "Прозрачное тесто ручной лепки, тигровая креветка, бамбук.",
+    portion: "4 шт · 120 г",
+    price: 52_000,
+    kanji: "点",
+    spiciness: 0,
+    isGlutenFree: true,
+  },
+  {
+    id: "d5",
+    slug: "mapo-tofu",
+    name: "Мапо тофу",
+    description: "Шёлковый тофу, ферментированные бобы, сычуаньский перец, рис.",
+    portion: "350 г",
+    price: 46_000,
+    kanji: "辛",
+    isVegan: true,
+    spiciness: 3,
+  },
+  {
+    id: "d6",
+    slug: "unagi-roll",
+    name: "Ролл с угрём",
+    description: "Копчёный угорь, сливочный сыр, огурец, соус унаги, кунжут.",
+    portion: "8 шт · 240 г",
+    price: 72_000,
+    kanji: "巻",
+    spiciness: 0,
+    soldOut: true,
+  },
+];
