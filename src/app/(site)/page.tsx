@@ -1,25 +1,38 @@
-import { KanjiBackdrop } from "@/components/brand/KanjiBackdrop";
-import { ButtonLink } from "@/components/ui/Button";
-import { SectionHeading } from "@/components/ui/Typography";
+import type { Metadata } from "next";
+import { FindUsSection } from "@/components/home/FindUsSection";
+import { GallerySection } from "@/components/home/GallerySection";
+import { Hero } from "@/components/home/Hero";
+import { HitsSection } from "@/components/home/HitsSection";
+import { InfoStrip } from "@/components/home/InfoStrip";
+import { PromotionsSection } from "@/components/home/PromotionsSection";
+import { ReviewsSection } from "@/components/home/ReviewsSection";
+import { StorySection } from "@/components/home/StorySection";
+import { restaurant } from "@/config/restaurant";
+import { demoDishes } from "@/data/demo-dishes";
+import { gallery, hero, promotions, reviews } from "@/data/home";
 
-/** Временная главная: полноценная страница появится на этапе 2. */
+export const metadata: Metadata = {
+  title: { absolute: `${restaurant.name} — ${restaurant.tagline.toLowerCase()}, ${restaurant.city}` },
+  description: hero.lead,
+  openGraph: {
+    title: `${restaurant.name} — ${hero.title.toLowerCase()}`,
+    description: hero.lead,
+  },
+};
+
 export default function HomePage() {
+  // TODO(этап 3): хиты из базы (Dish.isHit), этапы 6–7: акции и отзывы из админки.
+  const hits = demoDishes.filter((d) => d.isHit).slice(0, 4);
   return (
-    <section className="relative overflow-hidden">
-      <KanjiBackdrop char="炭" className="-top-4 -right-4" />
-      <div className="relative mx-auto flex max-w-site flex-col gap-4 px-2 py-10 md:px-3 md:py-16">
-        <SectionHeading
-          as="h1"
-          eyebrow="Скоро открытие"
-          title="Приходите голодными"
-          lead="Главная страница появится на следующем этапе. Пока можно посмотреть витрину компонентов."
-        />
-        <div className="flex flex-wrap gap-2">
-          <ButtonLink href="/styleguide" size="lg">
-            Открыть витрину
-          </ButtonLink>
-        </div>
-      </div>
-    </section>
+    <>
+      <Hero />
+      <InfoStrip />
+      <HitsSection dishes={hits} />
+      <PromotionsSection items={promotions} />
+      <StorySection />
+      <GallerySection items={gallery} />
+      <ReviewsSection items={reviews} />
+      <FindUsSection />
+    </>
   );
 }

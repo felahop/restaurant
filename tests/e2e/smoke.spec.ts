@@ -3,7 +3,8 @@ import { expect, test } from "@playwright/test";
 test.describe("каркас и дизайн-система", () => {
   test("главная: плашка, шапка, подвал, телефон ссылкой", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Приходите голодными");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+    await expect(page.getByRole("heading", { level: 1 })).not.toBeEmpty();
     await expect(page.getByRole("complementary", { name: "Условия доставки" })).toBeVisible();
     const tel = page.locator('a[href^="tel:"]').first();
     await expect(tel).toHaveAttribute("href", /^tel:\+7\d{10}$/);

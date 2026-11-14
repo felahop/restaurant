@@ -78,6 +78,8 @@
   --text-2xs--line-height: 1.33;
   --text-kanji: clamp(12rem, 6rem + 26vw, 30rem);
   --text-kanji--line-height: 1;
+  --text-kanji-sm: clamp(6rem, 3rem + 10vw, 12rem);
+  --text-kanji-sm--line-height: 1;
 
   --tracking-eyebrow: 0.12em;
   --tracking-tight: -0.01em;
@@ -236,6 +238,14 @@
 
   p {
     text-wrap: pretty;
+  }
+}
+
+/* Горизонтальные ленты без полосы прокрутки (прокрутка жестом и клавиатурой сохраняется). */
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
   }
 }
 

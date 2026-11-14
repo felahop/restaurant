@@ -1,10 +1,9 @@
+import { CartAnnouncer } from "@/components/site/CartAnnouncer";
 import { Footer } from "@/components/site/Footer";
-import { Header } from "@/components/site/Header";
-import { MobileCartBar } from "@/components/site/MobileCartBar";
+import { SiteHeader, SiteMobileCartBar } from "@/components/site/SiteChrome";
 import { TopBar } from "@/components/site/TopBar";
 
 export default function SiteLayout({ children }: { children: React.ReactNode }) {
-  // TODO(этап 2): корзина из клиентского хранилища вместо нулей.
   return (
     <>
       <a
@@ -14,10 +13,11 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
         Перейти к содержимому
       </a>
       <TopBar />
-      <Header cartCount={0} cartTotal={0} />
+      <SiteHeader />
       <main id="main">{children}</main>
       <Footer />
-      <MobileCartBar count={0} total={0} />
+      <SiteMobileCartBar />
+      <CartAnnouncer />
     </>
   );
 }
