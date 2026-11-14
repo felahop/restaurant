@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
+import { connection } from "next/server";
 import { FindUsSection } from "@/components/home/FindUsSection";
 import { GallerySection } from "@/components/home/GallerySection";
 import { Hero } from "@/components/home/Hero";
@@ -8,8 +10,8 @@ import { PromotionsSection } from "@/components/home/PromotionsSection";
 import { ReviewsSection } from "@/components/home/ReviewsSection";
 import { StorySection } from "@/components/home/StorySection";
 import { restaurant } from "@/config/restaurant";
-import { demoDishes } from "@/data/demo-dishes";
 import { gallery, hero, promotions, reviews } from "@/data/home";
+import { getHits } from "@/server/menu";
 
 export const metadata: Metadata = {
   title: { absolute: `${restaurant.name} — ${restaurant.tagline.toLowerCase()}, ${restaurant.city}` },
@@ -20,14 +22,22 @@ export const metadata: Metadata = {
   },
 };
 
+/** Хиты из базы: блюда с меткой «Хит», которую ставят в админ-панели. */
+async function Hits() {
+  await connection();
+  const hits = await getHits(4);
+  return <HitsSection dishes={hits} />;
+}
+
 export default function HomePage() {
-  // TODO(этап 3): хиты из базы (Dish.isHit), этапы 6–7: акции и отзывы из админки.
-  const hits = demoDishes.filter((d) => d.isHit).slice(0, 4);
+  // TODO(этапы 6–7): акции и отзывы из админ-панели.
   return (
     <>
       <Hero />
       <InfoStrip />
-      <HitsSection dishes={hits} />
+      <Suspense fallback={<HitsSection />}>
+        <Hits />
+      </Suspense>
       <PromotionsSection items={promotions} />
       <StorySection />
       <GallerySection items={gallery} />

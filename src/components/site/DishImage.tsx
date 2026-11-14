@@ -4,7 +4,7 @@ import { cn } from "@/lib/cn";
 type DishImageProps = {
   name: string;
   imageUrl?: string | null;
-  kanji?: string;
+  kanji?: string | null;
   sizes?: string;
   priority?: boolean;
   className?: string;
@@ -12,7 +12,7 @@ type DishImageProps = {
 };
 
 /** Фото блюда 4:3 или заглушка в палитре сайта с названием блюда. */
-export function DishImage({ name, imageUrl, kanji = "食", sizes, priority, className, dimmed }: DishImageProps) {
+export function DishImage({ name, imageUrl, kanji, sizes, priority, className, dimmed }: DishImageProps) {
   return (
     <div className={cn("relative aspect-4/3 overflow-hidden bg-coal", className)}>
       {imageUrl ? (
@@ -78,7 +78,7 @@ export function DishImage({ name, imageUrl, kanji = "食", sizes, priority, clas
             />
           </svg>
           <span aria-hidden="true" className="relative font-kanji text-h1 text-paper opacity-20">
-            {kanji}
+            {kanji ?? "食"}
           </span>
           <span
             aria-hidden="true"

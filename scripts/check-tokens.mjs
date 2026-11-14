@@ -45,7 +45,7 @@ function walk(dir) {
 const problems = [];
 for (const file of walk(SRC)) {
   const rel = relative(ROOT, file);
-  if (ALLOWED_FILES.has(rel)) continue;
+  if (ALLOWED_FILES.has(rel) || rel.startsWith("src/generated/")) continue;
   const lines = readFileSync(file, "utf8").split("\n");
   lines.forEach((line, i) => {
     if (line.includes("tokens-ignore")) return;

@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Menu, Phone, User, X } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
@@ -12,14 +11,19 @@ import { cn } from "@/lib/cn";
 import { CartButton } from "./CartButton";
 import { MessengerLinks } from "./MessengerLinks";
 
-type HeaderProps = { cartCount: number; cartTotal: number };
+type HeaderProps = {
+  cartCount: number;
+  cartTotal: number;
+  /** Текущий путь для подсветки пункта меню; null — пока неизвестен (статичная оболочка). */
+  pathname?: string | null;
+};
 
-function isActive(pathname: string, href: string) {
+function isActive(pathname: string | null, href: string) {
+  if (!pathname) return false;
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function Header({ cartCount, cartTotal }: HeaderProps) {
-  const pathname = usePathname();
+export function Header({ cartCount, cartTotal, pathname = null }: HeaderProps) {
   const [scrolled, setScrolled] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
 

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import type { DishCardData } from "@/types/dish";
-import { Button } from "@/components/ui/Button";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { DishBadge, SpiceLevel } from "@/components/ui/Badge";
 import { QuantityStepper } from "@/components/ui/QuantityStepper";
 import { Price } from "@/components/ui/Typography";
@@ -71,6 +71,10 @@ export function DishCard({
               <Button size="sm" variant="ghost" disabled aria-label={`${dish.name} закончилось`}>
                 Нет в наличии
               </Button>
+            ) : dish.requiresChoice ? (
+              <ButtonLink href={href} size="sm" variant="secondary" aria-label={`Выбрать добавки: ${dish.name}`}>
+                Выбрать
+              </ButtonLink>
             ) : quantity > 0 ? (
               <QuantityStepper
                 value={quantity}

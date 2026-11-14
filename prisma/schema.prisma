@@ -1,0 +1,586 @@
+// Схема базы данных ресторана.
+// Деньги — целые копейки (Int). Удаление блюд мягкое (deletedAt).
+// В заказе хранится снимок названий и цен: правка меню не меняет старые заказы.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Меню
+// ---------------------------------------------------------------------------
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  /// Декоративный иероглиф для заглушек и фона.
+  kanji     String?
+  sortOrder Int      @default(0)
+  isHidden  Boolean  @default(false)
+  dishes    Dish[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sortOrder])
+}
+
+enum Allergen {
+  GLUTEN
+  CRUSTACEANS
+  EGGS
+  FISH
+  PEANUTS
+  SOY
+  MILK
+  TREE_NUTS
+  CELERY
+  MUSTARD
+  SESAME
+  SULPHITES
+  MOLLUSCS
+}
+
+model Dish {
+  id           String     @id @default(cuid())
+  categoryId   String
+  category     Category   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  name         String
+  slug         String     @unique
+  /// Короткое описание для карточки.
+  description  String
+  /// Состав.
+  composition  String
+  /// Выход для показа: «2 шт · 220 г».
+  portion      String
+  weightGrams  Int?
+  volumeMl     Int?
+  /// КБЖУ на порцию.
+  kcal         Int?
+  proteins     Float?
+  fats         Float?
+  carbs        Float?
+  allergens    Allergen[]
+  /// Острота 0–3.
+  spiciness    Int        @default(0)
+  price        Int
+  oldPrice     Int?
+  imageUrl     String?
+  kanji        String?
+  isHit        Boolean    @default(false)
+  isNew        Boolean    @default(false)
+  isVegan      Boolean    @default(false)
+  isGlutenFree Boolean    @default(false)
+  /// false — блюдо в стоп-листе: видно в меню с меткой «Закончилось», заказать нельзя.
+  isAvailable  Boolean    @default(true)
+  sortOrder    Int        @default(0)
+  deletedAt    DateTime?
+
+  modifierGroups DishModifierGroup[]
+  orderItems     OrderItem[]
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@index([categoryId, sortOrder])
+  @@index([deletedAt])
+}
+
+/// Группа добавок, общая для нескольких блюд: «Лапша», «Добавки в рамен».
+model ModifierGroup {
+  id        String              @id @default(cuid())
+  name      String
+  /// Минимум и максимум выбранных добавок. min 1, max 1 — обязательный выбор одного варианта.
+  minSelect Int                 @default(0)
+  maxSelect Int                 @default(1)
+  modifiers Modifier[]
+  dishes    DishModifierGroup[]
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+}
+
+model Modifier {
+  id          String              @id @default(cuid())
+  groupId     String
+  group       ModifierGroup       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  name        String
+  price       Int                 @default(0)
+  isAvailable Boolean             @default(true)
+  sortOrder   Int                 @default(0)
+  orderItems  OrderItemModifier[]
+
+  @@index([groupId, sortOrder])
+}
+
+model DishModifierGroup {
+  dishId    String
+  dish      Dish          @relation(fields: [dishId], references: [id], onDelete: Cascade)
+  groupId   String
+  group     ModifierGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  sortOrder Int           @default(0)
+
+  @@id([dishId, groupId])
+}
+
+// ---------------------------------------------------------------------------
+// Гости
+// ---------------------------------------------------------------------------
+
+model User {
+  id             String    @id @default(cuid())
+  /// Телефон в E.164: +79991234567.
+  phone          String    @unique
+  name           String?
+  email          String?
+  bonusBalance   Int       @default(0)
+  consentAt      DateTime?
+  consentVersion String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  addresses         Address[]
+  orders            Order[]
+  bonusTransactions BonusTransaction[]
+  sessions          Session[]
+  cart              Cart?
+  reservations      Reservation[]
+  reviews           Review[]
+}
+
+model Address {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label      String?
+  text       String
+  lat        Float
+  lng        Float
+  apartment  String?
+  entrance   String?
+  floor      String?
+  intercom   String?
+  comment    String?
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+}
+
+/// Корзина вошедшего гостя (снимок клиентской корзины).
+model Cart {
+  userId    String   @id
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     Json
+  updatedAt DateTime @updatedAt
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  /// SHA-256 от токена из cookie; сам токен в базе не хранится.
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model OtpCode {
+  id         String    @id @default(cuid())
+  phone      String
+  codeHash   String
+  attempts   Int       @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([phone, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Заказы и оплата
+// ---------------------------------------------------------------------------
+
+enum OrderType {
+  DELIVERY
+  PICKUP
+}
+
+enum OrderStatus {
+  /// Онлайн-оплата ещё не подтверждена уведомлением платёжного сервиса.
+  AWAITING_PAYMENT
+  ACCEPTED
+  COOKING
+  /// Доставка: передан курьеру.
+  DELIVERING
+  /// Самовывоз: готов к выдаче.
+  READY
+  /// Доставлен / выдан.
+  COMPLETED
+  CANCELED
+}
+
+enum PaymentMethod {
+  CARD_ONLINE
+  SBP
+  CARD_ON_DELIVERY
+  CASH
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  CANCELED
+  REFUNDED
+  /// Оплата при получении.
+  NOT_REQUIRED
+}
+
+model Order {
+  id          String      @id @default(cuid())
+  /// Короткий номер для кухни и гостя.
+  number      Int         @unique @default(autoincrement())
+  /// Неугадываемый идентификатор для ссылки на статус заказа.
+  publicToken String      @unique
+  userId      String?
+  user        User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  type        OrderType
+  status      OrderStatus
+
+  customerName  String
+  customerPhone String
+  comment       String?
+  cutlery       Int     @default(0)
+
+  addressText String?
+  addressLat  Float?
+  addressLng  Float?
+  apartment   String?
+  entrance    String?
+  floor       String?
+  intercom    String?
+  zoneId      String?
+  zone        DeliveryZone? @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+
+  /// null — как можно скорее.
+  scheduledFor DateTime?
+
+  subtotal     Int
+  deliveryFee  Int
+  discount     Int        @default(0)
+  bonusSpent   Int        @default(0)
+  total        Int
+  bonusEarned  Int        @default(0)
+  promoCodeId  String?
+  promoCode    PromoCode? @relation(fields: [promoCodeId], references: [id], onDelete: SetNull)
+  promoCodeRaw String?
+
+  paymentMethod   PaymentMethod
+  paymentStatus   PaymentStatus
+  paymentProvider String?
+  paymentId       String?       @unique
+  paidAt          DateTime?
+
+  cancelReason String?
+  acceptedAt   DateTime?
+  cookingAt    DateTime?
+  deliveringAt DateTime?
+  readyAt      DateTime?
+  completedAt  DateTime?
+  canceledAt   DateTime?
+  consentAt    DateTime
+
+  items             OrderItem[]
+  bonusTransactions BonusTransaction[]
+  reviews           Review[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@index([status, createdAt])
+  @@index([createdAt])
+  @@index([userId])
+}
+
+model OrderItem {
+  id        String              @id @default(cuid())
+  orderId   String
+  order     Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  dishId    String?
+  dish      Dish?               @relation(fields: [dishId], references: [id], onDelete: SetNull)
+  /// Снимок на момент заказа.
+  name      String
+  basePrice Int
+  /// Цена порции с добавками.
+  unitPrice Int
+  quantity  Int
+  lineTotal Int
+  modifiers OrderItemModifier[]
+
+  @@index([orderId])
+  @@index([dishId])
+}
+
+model OrderItemModifier {
+  id          String    @id @default(cuid())
+  orderItemId String
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  modifierId  String?
+  modifier    Modifier? @relation(fields: [modifierId], references: [id], onDelete: SetNull)
+  groupName   String
+  name        String
+  price       Int
+}
+
+/// Входящие уведомления платёжного сервиса. Уникальность (provider, eventId) делает обработку идемпотентной.
+model PaymentEvent {
+  id          String    @id @default(cuid())
+  provider    String
+  eventId     String
+  paymentId   String
+  type        String
+  payload     Json
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@unique([provider, eventId])
+  @@index([paymentId])
+}
+
+// ---------------------------------------------------------------------------
+// Доставка
+// ---------------------------------------------------------------------------
+
+model DeliveryZone {
+  id         String   @id @default(cuid())
+  name       String
+  color      String
+  /// Многоугольник: [[lat, lng], ...].
+  polygon    Json
+  fee        Int
+  minOrder   Int
+  /// Порог бесплатной доставки; null — бесплатной доставки нет.
+  freeFrom   Int?
+  etaMinutes Int
+  isActive   Boolean  @default(true)
+  sortOrder  Int      @default(0)
+  orders     Order[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Маркетинг
+// ---------------------------------------------------------------------------
+
+enum DiscountType {
+  PERCENT
+  FIXED
+}
+
+model PromoCode {
+  id         String       @id @default(cuid())
+  /// Хранится в верхнем регистре.
+  code       String       @unique
+  type       DiscountType
+  /// Процент (1–100) или сумма в копейках.
+  value      Int
+  minOrder   Int?
+  startsAt   DateTime?
+  endsAt     DateTime?
+  usageLimit Int?
+  usedCount  Int          @default(0)
+  isActive   Boolean      @default(true)
+  orders     Order[]
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+}
+
+enum PromotionKind {
+  PROMO
+  BANNER
+}
+
+model Promotion {
+  id        String        @id @default(cuid())
+  kind      PromotionKind @default(PROMO)
+  badge     String?
+  title     String
+  text      String
+  period    String?
+  kanji     String?
+  imageUrl  String?
+  ctaLabel  String?
+  ctaHref   String?
+  startsAt  DateTime?
+  endsAt    DateTime?
+  isActive  Boolean       @default(true)
+  sortOrder Int           @default(0)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Брони, отзывы, бонусы, обращения
+// ---------------------------------------------------------------------------
+
+enum ReservationStatus {
+  NEW
+  CONFIRMED
+  COMPLETED
+  CANCELED
+}
+
+model Reservation {
+  id        String            @id @default(cuid())
+  startsAt  DateTime
+  guests    Int
+  name      String
+  phone     String
+  comment   String?
+  status    ReservationStatus @default(NEW)
+  userId    String?
+  user      User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  consentAt DateTime
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@index([startsAt])
+  @@index([status, createdAt])
+}
+
+model Review {
+  id          String    @id @default(cuid())
+  authorName  String
+  rating      Int
+  text        String
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  orderId     String?
+  order       Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  isPublished Boolean   @default(false)
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([isPublished, publishedAt])
+}
+
+enum BonusType {
+  EARN
+  SPEND
+  REFUND
+  ADJUST
+}
+
+model BonusTransaction {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderId   String?
+  order     Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  type      BonusType
+  /// Положительное — начисление, отрицательное — списание. В копейках (1 бонус = 1 ₽ = 100).
+  amount    Int
+  comment   String?
+  createdAt DateTime  @default(now())
+
+  /// Одно начисление и одно списание на заказ: повторное уведомление не начислит бонусы дважды.
+  @@unique([orderId, type])
+  @@index([userId, createdAt])
+}
+
+model ContactMessage {
+  id        String    @id @default(cuid())
+  name      String
+  phone     String?
+  email     String?
+  message   String
+  consentAt DateTime
+  handledAt DateTime?
+  createdAt DateTime  @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Настройки и администрирование
+// ---------------------------------------------------------------------------
+
+/// Единственная строка (id = 1): контакты, часы, тексты плашки, бонусы.
+model Settings {
+  id            Int      @id @default(1)
+  name          String
+  tagline       String
+  description   String
+  legalName     String
+  city          String
+  addressFull   String
+  addressShort  String
+  metro         String
+  parking       String
+  lat           Float
+  lng           Float
+  timezone      String
+  phoneDisplay  String
+  phoneE164     String
+  email         String
+  telegramUrl   String?
+  whatsappUrl   String?
+  vkUrl         String?
+  /// Часы зала: { mon: [{ open, close }], ... }.
+  openingHours  Json
+  /// Часы приёма заказов (тот же формат).
+  orderHours    Json
+  ordersPaused  Boolean  @default(false)
+  /// Пункты плашки над шапкой (строки).
+  topBarItems   String[]
+  etaFromMin    Int
+  etaToMin      Int
+  pickupMinutes Int      @default(25)
+
+  bonusEarnPercent     Int @default(5)
+  bonusMaxSpendPercent Int @default(30)
+  scheduleStepMinutes  Int @default(15)
+  scheduleLeadMinutes  Int @default(45)
+  scheduleDaysAhead    Int @default(2)
+
+  updatedAt DateTime @updatedAt
+}
+
+enum AdminRole {
+  OWNER
+  MANAGER
+}
+
+model AdminUser {
+  id           String         @id @default(cuid())
+  login        String         @unique
+  passwordHash String
+  name         String
+  role         AdminRole      @default(MANAGER)
+  isActive     Boolean        @default(true)
+  lastLoginAt  DateTime?
+  sessions     AdminSession[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+}
+
+model AdminSession {
+  id          String    @id @default(cuid())
+  tokenHash   String    @unique
+  adminUserId String
+  adminUser   AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+
+  @@index([adminUserId])
+}
+
+/// Счётчики для ограничения частоты (коды входа, формы). Работает при нескольких экземплярах приложения.
+model RateLimit {
+  key     String   @id
+  count   Int
+  resetAt DateTime
+}

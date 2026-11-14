@@ -83,6 +83,7 @@ export function SpiceLevel({
 }) {
   if (level === 0 && !showZero) return null;
   const label = spiceLabels[level];
+  if (level === 0) return <span className={cn("text-sm text-fg-muted", className)}>{label}</span>;
   return (
     <span className={cn("inline-flex items-center gap-0.5 text-ginger", className)} title={label}>
       <span className="sr-only">{label}</span>

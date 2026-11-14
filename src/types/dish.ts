@@ -12,11 +12,13 @@ export type DishCardData = {
   oldPrice?: number | null;
   imageUrl?: string | null;
   /** Иероглиф для заглушки без фото (из подмножества шрифта). */
-  kanji?: string;
+  kanji?: string | null;
   isHit?: boolean;
   isNew?: boolean;
   isVegan?: boolean;
   isGlutenFree?: boolean;
   spiciness: SpiceLevelValue;
   soldOut?: boolean;
+  /** Есть обязательный выбор (например, основа для вока): быстрое добавление недоступно, открываем блюдо. */
+  requiresChoice?: boolean;
 };

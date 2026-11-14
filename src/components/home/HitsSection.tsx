@@ -1,12 +1,14 @@
 import { ArrowRight } from "lucide-react";
 import { CartDishCard } from "@/components/site/CartDishCard";
+import { DishCardSkeleton } from "@/components/site/DishCard";
 import { ButtonLink } from "@/components/ui/Button";
 import { SectionHeading } from "@/components/ui/Typography";
 import { hitsIntro } from "@/data/home";
 import type { DishCardData } from "@/types/dish";
 
 /** «Хиты»: четыре карточки с быстрым добавлением. На телефоне — горизонтальная лента. */
-export function HitsSection({ dishes }: { dishes: DishCardData[] }) {
+/** dishes не передан — показываем скелетоны, пока меню грузится из базы. */
+export function HitsSection({ dishes }: { dishes?: DishCardData[] }) {
   return (
     <section aria-labelledby="hits-title" className="py-8 md:py-12">
       <div data-reveal className="mx-auto flex max-w-site flex-col gap-4 px-2 md:px-3">
@@ -21,11 +23,19 @@ export function HitsSection({ dishes }: { dishes: DishCardData[] }) {
         </div>
 
         <ul className="scrollbar-none -mx-2 flex snap-x snap-mandatory scroll-px-2 gap-2 overflow-x-auto px-2 pb-1 md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 md:pb-0 lg:grid-cols-4">
-          {dishes.map((dish) => (
-            <li key={dish.id} className="flex w-[82%] shrink-0 snap-start sm:w-[46%] md:w-auto">
-              <CartDishCard dish={dish} className="w-full" />
-            </li>
-          ))}
+          {dishes
+            ? dishes.map((dish) => (
+                <li key={dish.id} className="flex w-[82%] shrink-0 snap-start sm:w-[46%] md:w-auto">
+                  <CartDishCard dish={dish} className="w-full" />
+                </li>
+              ))
+            : Array.from({ length: 4 }, (_, i) => (
+                <li key={i} className="flex w-[82%] shrink-0 sm:w-[46%] md:w-auto">
+                  <div className="w-full">
+                    <DishCardSkeleton />
+                  </div>
+                </li>
+              ))}
         </ul>
 
         <div className="md:hidden">

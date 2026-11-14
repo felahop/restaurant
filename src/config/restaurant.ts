@@ -55,6 +55,17 @@ export const restaurant = {
   /** Часы для вывода на сайте, по строке на группу дней. */
   hoursLines: ["Пн–Чт 11:00–23:00", "Пт 11:00–00:00", "Сб 12:00–00:00", "Вс 12:00–23:00"], // TODO
 
+  /** Часы приёма заказов на доставку и самовывоз: кухня закрывается за 30 минут до зала. */
+  orderHours: {
+    mon: [{ open: "11:00", close: "22:30" }],
+    tue: [{ open: "11:00", close: "22:30" }],
+    wed: [{ open: "11:00", close: "22:30" }],
+    thu: [{ open: "11:00", close: "22:30" }],
+    fri: [{ open: "11:00", close: "23:30" }],
+    sat: [{ open: "12:00", close: "23:30" }],
+    sun: [{ open: "12:00", close: "22:30" }],
+  } satisfies Record<WeekdayKey, OpeningInterval[]>, // TODO
+
   delivery: {
     minOrder: 90_000, // 900 ₽ — TODO
     freeFrom: 250_000, // 2 500 ₽ — TODO

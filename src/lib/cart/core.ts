@@ -17,7 +17,7 @@ export type CartLine = {
   unitPrice: number;
   qty: number;
   imageUrl?: string | null;
-  kanji?: string;
+  kanji?: string | null;
   modifiers: CartModifier[];
 };
 

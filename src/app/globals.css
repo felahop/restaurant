@@ -249,6 +249,38 @@
   }
 }
 
+/* Шторка блюда: выезжает снизу на телефоне, проявляется на десктопе. */
+@layer components {
+  .sheet-dialog[open] {
+    animation: sheet-up 250ms var(--ease-out);
+  }
+  .sheet-dialog[open]::backdrop {
+    animation: fade-in 200ms var(--ease-out);
+  }
+  @media (min-width: 48rem) {
+    .sheet-dialog[open] {
+      animation: fade-in 200ms var(--ease-out);
+    }
+  }
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
 /* Появление секций при прокрутке. Без JS и при reduced-motion контент виден сразу. */
 @layer components {
   .js-reveal [data-reveal]:not([data-revealed]) {
