@@ -29,12 +29,28 @@ npm run dev                  # http://localhost:3000, витрина компо�
 - Уведомления о заказах: Telegram (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`), иначе запись в лог. В сообщения не попадают
   персональные данные гостя.
 
+## Оплата
+
+- Модуль `PaymentProvider` (`src/server/payments`): тестовая заглушка `mock` и ЮKassa (`yookassa`), выбор — `PAYMENT_PROVIDER`.
+- Данные карт сайт не принимает и не хранит: гость оплачивает на странице платёжного сервиса.
+- Заказ с онлайн-оплатой создаётся в статусе «Ждём оплату». Оплаченным он становится **только** по уведомлению сервиса
+  (`POST /api/payments/webhook/<provider>`). Подлинность: ЮKassa — IP из официального списка + статус платежа всегда
+  перепроверяется запросом к API; заглушка — подпись HMAC.
+- Повторные уведомления безопасны: событие записывается в `PaymentEvent` с уникальным ключом, заказ блокируется на время
+  обработки, бонусы начисляются одной записью (`BonusTransaction` с уникальной парой заказ+тип), сумма платежа сверяется с заказом.
+- Подключение ЮKassa: задайте `PAYMENT_PROVIDER=yookassa`, `YOOKASSA_SHOP_ID`, `YOOKASSA_SECRET_KEY`; в личном кабинете
+  укажите URL уведомлений `https://<домен>/api/payments/webhook/yookassa` и события `payment.succeeded`, `payment.canceled`.
+  Обратный прокси (Caddy/Nginx) должен перезаписывать `X-Forwarded-For` реальным IP клиента.
+- Чеки 54-ФЗ пока не отправляются (TODO в `src/server/payments/yookassa.ts`): решите, кто их формирует — ЮKassa или ваша касса.
+- Страница заказа `/order/<токен>` обновляется сама (опрос раз в 5 секунд), при неудачной оплате предлагает повторить.
+
 ## Проверки
 
 ```bash
 npm run lint         # ESLint + проверка, что цвета и размеры шрифтов идут только из токенов
 npm run typecheck    # TypeScript, строгий режим
-npm test             # Vitest: деньги, телефон, токены и контраст WCAG
+npm test             # Vitest: суммы, скидки, зоны, слоты, корзина, телефон, токены и контраст WCAG
+npm run test:integration  # Vitest с настоящей базой: идемпотентность уведомлений об оплате и бонусов
 npm run build
 npx playwright install chromium   # один раз
 npm run test:e2e     # Playwright на 375 и 1440 px (сам запустит npm start с RATE_LIMIT_SCALE=50; нужна база с сидом)

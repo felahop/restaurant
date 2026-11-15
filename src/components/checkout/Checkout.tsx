@@ -266,7 +266,7 @@ export function Checkout({ restaurant }: { restaurant: Restaurant }) {
           consent,
         }),
       });
-      const body = (await res.json()) as { token?: string; error?: string };
+      const body = (await res.json()) as { token?: string; error?: string; paymentUrl?: string };
       if (!res.ok || !body.token) {
         setSubmitError(body.error ?? "Не получилось оформить заказ. Попробуйте ещё раз.");
         return;
@@ -277,7 +277,9 @@ export function Checkout({ restaurant }: { restaurant: Restaurant }) {
         // не страшно
       }
       cart.clear();
-      router.push(`/order/${body.token}`);
+      // Онлайн-оплата: уходим на страницу платёжного сервиса; данные карты вводятся только там.
+      if (body.paymentUrl) window.location.assign(body.paymentUrl);
+      else router.push(`/order/${body.token}`);
     } catch {
       setSubmitError("Нет связи. Проверьте интернет и нажмите ещё раз — заказ не создан.");
     } finally {
@@ -297,7 +299,7 @@ export function Checkout({ restaurant }: { restaurant: Restaurant }) {
         e.preventDefault();
         void submit();
       }}
-      className="mx-auto max-w-site px-2 pb-6 md:px-3 lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start lg:gap-4"
+      className="mx-auto max-w-site px-2 pb-12 md:px-3 lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start lg:gap-4 lg:pb-6"
     >
       <div className="flex flex-col gap-2 md:gap-3">
         {/* ---------- Корзина ---------- */}
@@ -715,15 +717,26 @@ export function Checkout({ restaurant }: { restaurant: Restaurant }) {
           </p>
         ) : null}
 
-        <Button type="submit" size="lg" block loading={submitting} disabled={quoteLoading && !quote}>
-          <span className="tabular-nums">{submitLabel}</span>
-        </Button>
+        {/* На десктопе кнопка в блоке «Итого» (он липкий); на телефоне и планшете — липкая полоса снизу. */}
+        <div className="hidden lg:block">
+          <Button type="submit" size="lg" block loading={submitting} disabled={quoteLoading && !quote}>
+            <span className="tabular-nums">{submitLabel}</span>
+          </Button>
+        </div>
         {online ? (
           <p className="text-sm text-fg-muted">
             Данные карты вводятся только на странице платёжного сервиса. Мы их не видим и не храним.
           </p>
         ) : null}
       </aside>
+
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface px-2 pt-1 pb-[max(8px,env(safe-area-inset-bottom))] shadow-bar lg:hidden">
+        <div className="mx-auto max-w-site">
+          <Button type="submit" size="lg" block loading={submitting} disabled={quoteLoading && !quote}>
+            <span className="tabular-nums">{submitLabel}</span>
+          </Button>
+        </div>
+      </div>
     </form>
   );
 }

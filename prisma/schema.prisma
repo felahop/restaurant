@@ -584,3 +584,17 @@ model RateLimit {
   count   Int
   resetAt DateTime
 }
+
+/// Платежи тестовой заглушки (PAYMENT_PROVIDER=mock). В боевом режиме не используется.
+model MockPayment {
+  id        String   @id
+  orderId   String
+  amount    Int
+  method    String
+  status    String   @default("pending")
+  returnUrl String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderId])
+}

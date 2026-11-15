@@ -8,6 +8,7 @@ import { loadQuoteContext, pointFromToken, scheduleInfo } from "@/server/checkou
 import { db } from "@/server/db";
 import { clientIp, isSameOrigin, jsonError } from "@/server/http";
 import { notifySafely } from "@/server/notify";
+import { startPayment } from "@/server/payments/start";
 import { rateLimit } from "@/server/rate-limit";
 import { getSettings } from "@/server/settings";
 
@@ -133,7 +134,7 @@ export async function POST(request: Request) {
             })),
           },
         },
-        select: { id: true, number: true, publicToken: true },
+        select: { id: true, number: true, publicToken: true, total: true, paymentMethod: true },
       });
     });
   } catch (e) {
@@ -167,8 +168,22 @@ export async function POST(request: Request) {
     );
   }
 
-  return Response.json(
-    { token: order.publicToken, number: order.number, next: online ? "payment" : "status" },
-    { status: 201 },
-  );
+  if (online) {
+    // Заказ сохранён и ждёт оплаты. Оплаченным он станет только по уведомлению платёжного сервиса.
+    try {
+      const paymentUrl = await startPayment(order);
+      return Response.json(
+        { token: order.publicToken, number: order.number, next: "payment", paymentUrl },
+        { status: 201 },
+      );
+    } catch (e) {
+      console.error("[payments] не удалось создать платёж", e);
+      return Response.json(
+        { token: order.publicToken, number: order.number, next: "status", paymentError: true },
+        { status: 201 },
+      );
+    }
+  }
+
+  return Response.json({ token: order.publicToken, number: order.number, next: "status" }, { status: 201 });
 }

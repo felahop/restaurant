@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { CheckCircle2, Clock } from "lucide-react";
-import { Eyebrow } from "@/components/ui/Typography";
+import { Clock } from "lucide-react";
+import { OrderStatusLive, type LiveOrder } from "@/components/order/OrderStatusLive";
 import { formatRub } from "@/lib/money";
 import { paymentLabels } from "@/lib/order/schemas";
 import { db } from "@/server/db";
@@ -13,16 +13,6 @@ export const metadata: Metadata = {
   title: "Ваш заказ",
   robots: { index: false, follow: false },
 };
-
-const statusLabels = {
-  AWAITING_PAYMENT: "Ждём оплату",
-  ACCEPTED: "Принят",
-  COOKING: "Готовится",
-  DELIVERING: "Передан курьеру",
-  READY: "Готов к выдаче",
-  COMPLETED: "Доставлен",
-  CANCELED: "Отменён",
-} as const;
 
 async function OrderDetails({ token }: { token: string }) {
   // Токен — 24 случайных байта; короткие и подозрительные значения отсекаем сразу.
@@ -42,16 +32,25 @@ async function OrderDetails({ token }: { token: string }) {
         minute: "2-digit",
       }).format(order.scheduledFor)
     : "как можно скорее";
-  const status = order.type === "PICKUP" && order.status === "COMPLETED" ? "Выдан" : statusLabels[order.status];
+  const iso = (d: Date | null) => (d ? d.toISOString() : null);
+  const live: LiveOrder = {
+    number: order.number,
+    type: order.type,
+    status: order.status,
+    paymentMethod: order.paymentMethod,
+    paymentStatus: order.paymentStatus,
+    cancelReason: order.cancelReason,
+    acceptedAt: iso(order.acceptedAt),
+    cookingAt: iso(order.cookingAt),
+    deliveringAt: iso(order.deliveringAt),
+    readyAt: iso(order.readyAt),
+    completedAt: iso(order.completedAt),
+  };
 
   return (
     <div className="flex flex-col gap-3">
+      <OrderStatusLive token={token} initial={live} timeZone={settings.timezone} />
       <div className="flex flex-col gap-1">
-        <Eyebrow>Заказ №{order.number}</Eyebrow>
-        <h1 className="flex items-center gap-1.5 font-display text-h1 text-fg">
-          <CheckCircle2 className="size-5 text-success" aria-hidden="true" />
-          {status}
-        </h1>
         <p className="text-lead text-fg-muted">
           {order.type === "DELIVERY" ? `Доставка: ${order.addressText}` : `Самовывоз: ${settings.addressShort}`}
         </p>
@@ -59,11 +58,6 @@ async function OrderDetails({ token }: { token: string }) {
           <Clock className="size-2 text-ginger" aria-hidden="true" />
           {when}
         </p>
-        {order.status === "AWAITING_PAYMENT" ? (
-          <p className="rounded-field bg-surface-2 px-2 py-1 text-sm text-fg">
-            Онлайн-оплата подключается на следующем этапе. Заказ сохранён и ждёт оплаты.
-          </p>
-        ) : null}
       </div>
 
       <section aria-labelledby="order-items" className="rounded-card border border-line bg-surface p-2 md:p-3">
