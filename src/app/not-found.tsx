@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
-import { Footer } from "@/components/site/Footer";
 import { NotFoundContent } from "@/components/site/NotFoundContent";
-import { SiteHeader, SiteHeaderFallback } from "@/components/site/SiteChrome";
-import { TopBar } from "@/components/site/TopBar";
+import { SiteBottom, SiteTop } from "@/components/site/SiteFrame";
 
 export const metadata: Metadata = {
   title: "Страница не найдена",
@@ -14,14 +11,11 @@ export const metadata: Metadata = {
 export default function NotFound() {
   return (
     <>
-      <TopBar />
-      <Suspense fallback={<SiteHeaderFallback />}>
-        <SiteHeader />
-      </Suspense>
+      <SiteTop />
       <main id="main">
         <NotFoundContent />
       </main>
-      <Footer />
+      <SiteBottom />
     </>
   );
 }

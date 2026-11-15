@@ -1,6 +1,6 @@
 import { connection } from "next/server";
-import { restaurant } from "@/config/restaurant";
 import { yandexStaticMapUrl } from "@/lib/maps/links";
+import { getSettings } from "@/server/settings";
 
 /**
  * Прокси статичной карты: ключ Яндекса не попадает в браузер, картинка кэшируется на сутки.
@@ -11,7 +11,7 @@ export async function GET() {
   const apiKey = process.env.YANDEX_MAPS_STATIC_API_KEY;
   if (!apiKey) return new Response("Static map is not configured", { status: 404 });
 
-  const { lat, lng } = restaurant.address;
+  const { lat, lng } = await getSettings(); // точка ресторана из настроек админ-панели
   const upstream = await fetch(yandexStaticMapUrl({ apiKey, lat, lng }), { cache: "no-store" });
   if (!upstream.ok || !upstream.body) {
     return new Response("Static map is unavailable", { status: 502 });

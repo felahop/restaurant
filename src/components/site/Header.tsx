@@ -1,17 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-import { Menu, Phone, User, X } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Menu, User, X } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { ButtonLink, IconButton } from "@/components/ui/Button";
 import { mainNav } from "@/config/navigation";
-import { restaurant } from "@/config/restaurant";
 import { cn } from "@/lib/cn";
 import { CartButton } from "./CartButton";
-import { MessengerLinks } from "./MessengerLinks";
 
 type HeaderProps = {
+  /** Телефон из настроек (серверная вставка, приходит потоком). */
+  phone?: ReactNode;
+  /** Контакты внизу мобильного меню (серверная вставка). */
+  drawerContacts?: ReactNode;
   cartCount: number;
   cartTotal: number;
   /** Текущий путь для подсветки пункта меню; null — пока неизвестен (статичная оболочка). */
@@ -23,7 +25,7 @@ function isActive(pathname: string | null, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function Header({ cartCount, cartTotal, pathname = null }: HeaderProps) {
+export function Header({ phone, drawerContacts, cartCount, cartTotal, pathname = null }: HeaderProps) {
   const [scrolled, setScrolled] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
 
@@ -38,8 +40,6 @@ export function Header({ cartCount, cartTotal, pathname = null }: HeaderProps) {
   useEffect(() => {
     dialogRef.current?.close();
   }, [pathname]);
-
-  const { phoneDisplay, phoneE164 } = restaurant.contacts;
 
   return (
     <header
@@ -77,20 +77,7 @@ export function Header({ cartCount, cartTotal, pathname = null }: HeaderProps) {
         </nav>
 
         <div className="flex items-center md:gap-1">
-          <a
-            href={`tel:${phoneE164}`}
-            className="hidden h-5.5 items-center gap-1 rounded-full px-1.5 text-base font-semibold text-fg tabular-nums transition-colors duration-150 hover:bg-surface-2 md:inline-flex"
-          >
-            <Phone className="size-2 text-ginger" aria-hidden="true" />
-            {phoneDisplay}
-          </a>
-          <a
-            href={`tel:${phoneE164}`}
-            aria-label={`Позвонить: ${phoneDisplay}`}
-            className="inline-flex size-5.5 items-center justify-center rounded-full text-fg transition-colors duration-150 hover:bg-surface-2 md:hidden"
-          >
-            <Phone className="size-2.5" aria-hidden="true" />
-          </a>
+          {phone}
           <Link
             href="/account"
             aria-label="Личный кабинет"
@@ -146,19 +133,7 @@ export function Header({ cartCount, cartTotal, pathname = null }: HeaderProps) {
                 );
               })}
             </ul>
-            <div className="mt-4 flex flex-col gap-2">
-              <a href={`tel:${phoneE164}`} className="text-h3 font-semibold text-fg tabular-nums">
-                {phoneDisplay}
-              </a>
-              <ul className="flex flex-wrap gap-x-2 text-sm text-fg-muted">
-                {restaurant.hoursLines.map((line) => (
-                  <li key={line} className="whitespace-nowrap">
-                    {line}
-                  </li>
-                ))}
-              </ul>
-              <MessengerLinks />
-            </div>
+            {drawerContacts}
           </nav>
           <div className="border-t border-line p-2 pb-[max(16px,env(safe-area-inset-bottom))]">
             <ButtonLink href="/menu" block size="lg" onClick={() => dialogRef.current?.close()}>

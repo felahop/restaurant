@@ -1,16 +1,17 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { FindUsSection } from "@/components/home/FindUsSection";
+import { FindUsSection, SiteFindUsSection } from "@/components/home/FindUsSection";
 import { GallerySection } from "@/components/home/GallerySection";
 import { Hero } from "@/components/home/Hero";
 import { HitsSection } from "@/components/home/HitsSection";
-import { InfoStrip } from "@/components/home/InfoStrip";
-import { PromotionsSection } from "@/components/home/PromotionsSection";
-import { ReviewsSection } from "@/components/home/ReviewsSection";
+import { InfoStrip, SiteInfoStrip } from "@/components/home/InfoStrip";
+import { PromoBanners } from "@/components/home/PromoBanners";
+import { SitePromotions } from "@/components/home/PromotionsSection";
+import { SiteReviews } from "@/components/home/ReviewsSection";
 import { StorySection } from "@/components/home/StorySection";
 import { restaurant } from "@/config/restaurant";
-import { gallery, hero, promotions, reviews } from "@/data/home";
+import { gallery, hero } from "@/data/home";
 import { getHits } from "@/server/menu";
 
 export const metadata: Metadata = {
@@ -29,20 +30,34 @@ async function Hits() {
   return <HitsSection dishes={hits} />;
 }
 
+/**
+ * Главная. Статичная оболочка (первый экран, история, галерея) собирается заранее,
+ * а данные из админ-панели — контакты, хиты, баннеры, акции, отзывы — приходят потоком.
+ */
 export default function HomePage() {
-  // TODO(этапы 6–7): акции и отзывы из админ-панели.
   return (
     <>
       <Hero />
-      <InfoStrip />
+      <Suspense fallback={<InfoStrip info={null} />}>
+        <SiteInfoStrip />
+      </Suspense>
+      <Suspense fallback={null}>
+        <PromoBanners className="pt-4 md:pt-6" />
+      </Suspense>
       <Suspense fallback={<HitsSection />}>
         <Hits />
       </Suspense>
-      <PromotionsSection items={promotions} />
+      <Suspense fallback={null}>
+        <SitePromotions />
+      </Suspense>
       <StorySection />
       <GallerySection items={gallery} />
-      <ReviewsSection items={reviews} />
-      <FindUsSection />
+      <Suspense fallback={null}>
+        <SiteReviews />
+      </Suspense>
+      <Suspense fallback={<FindUsSection info={null} />}>
+        <SiteFindUsSection />
+      </Suspense>
     </>
   );
 }

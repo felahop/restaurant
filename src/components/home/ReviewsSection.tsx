@@ -1,8 +1,23 @@
 import { Star } from "lucide-react";
+import { connection } from "next/server";
 import { SectionHeading } from "@/components/ui/Typography";
-import type { Review } from "@/data/home";
 import { reviewsIntro } from "@/data/home";
 import { cn } from "@/lib/cn";
+import { getPublishedReviews, type PublishedReview } from "@/server/content";
+
+const monthYear = new Intl.DateTimeFormat("ru-RU", { month: "long", year: "numeric", timeZone: "UTC" });
+
+/** «октябрь 2026»: без «г.» в конце. */
+function reviewDate(iso: string | null) {
+  return iso ? monthYear.format(new Date(iso)).replace(/\s?г\.$/, "") : null;
+}
+
+/** Опубликованные в админ-панели отзывы. Пока их нет — блока нет. */
+export async function SiteReviews() {
+  await connection();
+  const items = await getPublishedReviews(6);
+  return items.length ? <ReviewsSection items={items} /> : null;
+}
 
 function Stars({ rating }: { rating: number }) {
   return (
@@ -14,8 +29,8 @@ function Stars({ rating }: { rating: number }) {
   );
 }
 
-/** Отзывы на светлом фоне. Публикуются из админ-панели (этап 7). */
-export function ReviewsSection({ items }: { items: Review[] }) {
+/** Отзывы на светлом фоне. Публикуются в админ-панели (раздел «Отзывы»). */
+export function ReviewsSection({ items }: { items: PublishedReview[] }) {
   return (
     <section aria-labelledby="reviews-title" className="theme-light bg-canvas py-8 md:py-12">
       <div data-reveal className="mx-auto flex max-w-site flex-col gap-4 px-2 md:px-3">
@@ -29,8 +44,8 @@ export function ReviewsSection({ items }: { items: Review[] }) {
                   <p>«{r.text}»</p>
                 </blockquote>
                 <figcaption className="flex items-baseline justify-between gap-1 border-t border-line pt-2 text-sm">
-                  <span className="font-semibold text-fg">{r.author}</span>
-                  <span className="text-fg-muted">{r.date}</span>
+                  <span className="font-semibold text-fg">{r.authorName}</span>
+                  {r.publishedAt ? <span className="text-fg-muted">{reviewDate(r.publishedAt)}</span> : null}
                 </figcaption>
               </figure>
             </li>

@@ -6,7 +6,9 @@ import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { restaurant } from "../src/config/restaurant";
+import { randomBytes } from "node:crypto";
 import { circlePolygon } from "../src/lib/geo/polygon";
+import { hashPassword } from "../src/server/admin/password";
 import { categories, dishes, modifierGroups, rub } from "./seed-data/menu";
 
 const connectionString = process.env.DATABASE_URL;
@@ -189,8 +191,56 @@ async function seedPromos() {
   }
 }
 
+/**
+ * Сотрудники по умолчанию создаются, только если в базе ещё нет ни одного.
+ * Пароли: ADMIN_OWNER_PASSWORD и ADMIN_MANAGER_PASSWORD, иначе генерируются и печатаются один раз.
+ */
+async function seedAdmins() {
+  if ((await prisma.adminUser.count()) > 0) return;
+  const accounts = [
+    { login: "owner", name: "Владелец", role: "OWNER" as const, env: "ADMIN_OWNER_PASSWORD" },
+    { login: "manager", name: "Менеджер смены", role: "MANAGER" as const, env: "ADMIN_MANAGER_PASSWORD" },
+  ];
+  for (const a of accounts) {
+    const password = process.env[a.env] || `${randomBytes(9).toString("base64url")}7`;
+    await prisma.adminUser.create({
+      data: { login: a.login, name: a.name, role: a.role, passwordHash: await hashPassword(password) },
+    });
+    if (!process.env[a.env]) console.log(`Сотрудник ${a.login}: пароль ${password} — сохраните и смените в админке.`);
+  }
+}
+
+/** Демо-отзывы (опубликованы). Создаются один раз. */
+async function seedReviews() {
+  if ((await prisma.review.count()) > 0) return;
+  const reviews = [
+    { authorName: "Анна", rating: 5, text: "Тонкоцу как в Фукуоке: бульон густой, яйцо идеальное. Привезли за 40 минут, всё горячее." },
+    { authorName: "Дмитрий", rating: 5, text: "Сидели у открытой кухни и смотрели, как работает вок. Мапо тофу честно острое — спасибо, что предупредили." },
+    { authorName: "Мария", rating: 4, text: "Бао с грудинкой — любовь. Сет на двоих большой, двоим хватило с запасом. Хочется ещё десертов в меню." },
+  ];
+  for (const [i, r] of reviews.entries()) {
+    const publishedAt = new Date(Date.now() - (i + 1) * 9 * 86_400_000);
+    await prisma.review.create({ data: { ...r, isPublished: true, publishedAt, createdAt: publishedAt } });
+  }
+}
+
+/** Демо-акции для главной. Создаются один раз. */
+async function seedPromotions() {
+  if ((await prisma.promotion.count()) > 0) return;
+  await prisma.promotion.createMany({
+    data: [
+      { kind: "PROMO", badge: "−20%", title: "Обед с огня", text: "Любой вок и напиток со скидкой 20 % — в зале и на доставку.", period: "Пн–Пт, 12:00–16:00", kanji: "鍋", ctaLabel: "Выбрать вок", ctaHref: "/menu#cat-wok", sortOrder: 10 },
+      { kind: "PROMO", badge: "Сет", title: "Ужин на двоих", text: "Два рамена, бао и шесть димсамов за 2 990 ₽ вместо 3 560 ₽.", period: "Каждый день после 18:00", kanji: "宴", ctaLabel: "Заказать сет", ctaHref: "/menu", sortOrder: 20 },
+      { kind: "PROMO", badge: "Бонусы", title: "5 % возвращаем бонусами", text: "С каждого оплаченного заказа. Списывайте при следующем — до 30 % суммы.", period: "Для гостей с личным кабинетом", kanji: "味", ctaLabel: "Войти по номеру", ctaHref: "/account", sortOrder: 30 },
+    ],
+  });
+}
+
 async function main() {
   await seedSettings();
+  await seedAdmins();
+  await seedReviews();
+  await seedPromotions();
   await seedMenu();
   await seedZones();
   await seedPromos();

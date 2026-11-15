@@ -23,7 +23,8 @@ test.describe("меню", () => {
 
   test("поиск и фильтры", async ({ page }) => {
     await page.goto("/menu");
-    const cards = page.locator("main article");
+    // Блюда, которые параллельно создаёт тест админки, не считаем.
+    const cards = page.locator("main article").filter({ hasNotText: "E2E " });
     await expect(cards).toHaveCount(30);
 
     await page.getByLabel("Поиск по меню").fill("тофу");

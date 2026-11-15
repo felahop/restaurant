@@ -1,17 +1,14 @@
 /**
- * Контент главной до подключения базы и админки. ВСЁ — демо (TODO):
- * тексты, акции и отзывы вымышленные, фото пока нет (image: null → заглушка).
+ * Тексты главной. ВСЁ — демо (TODO): тексты вымышленные, фото пока нет (image: null → заглушка).
  * Чтобы поставить фото, положите файл в public/images/ и укажите { src: "/images/…", alt: "…" }.
- * Акции и отзывы на этапах 6–7 переедут в базу и будут редактироваться в админ-панели.
+ * Акции, баннеры и отзывы хранятся в базе и редактируются в админ-панели (Маркетинг, Отзывы).
  */
 import type { FrameImage } from "@/components/site/PhotoFrame";
-import { restaurant } from "@/config/restaurant";
-import { formatRub } from "@/lib/money";
 
 export const hero = {
-  eyebrow: `Паназиатская кухня · ${restaurant.city}`,
+  eyebrow: "Паназиатская кухня · угли и вок",
   title: "Горячее с\u00A0открытого огня",
-  lead: `Рамен на бульоне, который варится 12 часов, вок за полторы минуты и бао ручной лепки. Привезём за ${restaurant.delivery.etaMinutes.from}–${restaurant.delivery.etaMinutes.to} минут или ждём в зале.`,
+  lead: "Рамен на бульоне, который варится 12 часов, вок за полторы минуты и бао ручной лепки. Привезём горячим или ждём в зале.",
   /** 16:9 на десктопе, 4:5 на телефоне — кадрируется автоматически (object-cover). */
   image: null as FrameImage,
 };
@@ -21,46 +18,6 @@ export const hitsIntro = {
   title: "Хиты",
   lead: "Четыре блюда, ради которых возвращаются. Добавляйте в корзину прямо отсюда.",
 };
-
-export type Promotion = {
-  id: string;
-  badge: string;
-  title: string;
-  text: string;
-  period: string;
-  kanji: string;
-  cta: { label: string; href: string };
-};
-
-export const promotions: Promotion[] = [
-  {
-    id: "lunch",
-    badge: "−20%",
-    title: "Обед с огня",
-    text: "Любой вок и напиток со скидкой 20\u00A0% — в\u00A0зале и на доставку.",
-    period: "Пн–Пт, 12:00–16:00",
-    kanji: "鍋",
-    cta: { label: "Выбрать вок", href: "/menu" },
-  },
-  {
-    id: "duo",
-    badge: "Сет",
-    title: "Ужин на двоих",
-    text: `Два рамена, бао и шесть димсамов за ${formatRub(299_000)} вместо ${formatRub(356_000)}.`,
-    period: "Каждый день после 18:00",
-    kanji: "宴",
-    cta: { label: "Заказать сет", href: "/menu" },
-  },
-  {
-    id: "bonus",
-    badge: "Бонусы",
-    title: `${restaurant.bonus.earnPercent}\u00A0% возвращаем бонусами`,
-    text: `С каждого оплаченного заказа. Списывайте при следующем — до\u00A0${restaurant.bonus.maxSpendPercent}\u00A0% суммы.`,
-    period: "Для гостей с личным кабинетом",
-    kanji: "味",
-    cta: { label: "Войти по номеру", href: "/account" },
-  },
-];
 
 export const story = {
   eyebrow: "Наша история",
@@ -94,33 +51,8 @@ export const gallery: GalleryItem[] = [
   { id: "terrace", caption: "Веранда летом", kanji: "家", image: null, span: "wide" },
 ];
 
-export type Review = { id: string; author: string; date: string; rating: 1 | 2 | 3 | 4 | 5; text: string };
-
 export const reviewsIntro = {
   eyebrow: "Отзывы",
   title: "Что говорят гости",
 };
 
-export const reviews: Review[] = [
-  {
-    id: "r1",
-    author: "Анна",
-    date: "октябрь 2026",
-    rating: 5,
-    text: "Тонкоцу как в Фукуоке: бульон густой, яйцо идеальное. Привезли за 40 минут, всё горячее.",
-  },
-  {
-    id: "r2",
-    author: "Дмитрий",
-    date: "сентябрь 2026",
-    rating: 5,
-    text: "Сидели у открытой кухни и смотрели, как работает вок. Мапо тофу честно острое — спасибо, что предупредили.",
-  },
-  {
-    id: "r3",
-    author: "Мария",
-    date: "сентябрь 2026",
-    rating: 4,
-    text: "Бао с грудинкой — любовь. Сет на двоих большой, двоим хватило с запасом. Хочется ещё десертов в меню.",
-  },
-];

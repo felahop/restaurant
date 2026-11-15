@@ -241,6 +241,8 @@ export function Checkout({ restaurant }: { restaurant: Restaurant }) {
   };
 
   const submit = async () => {
+    // Пока нет первого расчёта, неизвестно, работает ли кухня: «как можно скорее» могло бы уйти в закрытые часы.
+    if (!schedule && !quoteError) return;
     setSubmitError(null);
     const errs = validate();
     if (Object.keys(errs).length) {
@@ -719,7 +721,7 @@ export function Checkout({ restaurant }: { restaurant: Restaurant }) {
 
         {/* На десктопе кнопка в блоке «Итого» (он липкий); на телефоне и планшете — липкая полоса снизу. */}
         <div className="hidden lg:block">
-          <Button type="submit" size="lg" block loading={submitting} disabled={quoteLoading && !quote}>
+          <Button type="submit" size="lg" block loading={submitting} disabled={!schedule && !quoteError}>
             <span className="tabular-nums">{submitLabel}</span>
           </Button>
         </div>
@@ -732,7 +734,7 @@ export function Checkout({ restaurant }: { restaurant: Restaurant }) {
 
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface px-2 pt-1 pb-[max(8px,env(safe-area-inset-bottom))] shadow-bar lg:hidden">
         <div className="mx-auto max-w-site">
-          <Button type="submit" size="lg" block loading={submitting} disabled={quoteLoading && !quote}>
+          <Button type="submit" size="lg" block loading={submitting} disabled={!schedule && !quoteError}>
             <span className="tabular-nums">{submitLabel}</span>
           </Button>
         </div>

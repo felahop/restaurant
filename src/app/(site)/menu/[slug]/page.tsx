@@ -11,7 +11,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const dish = await getDishBySlug(slug);
   if (!dish) return { title: "Блюдо не найдено" };
-  const description = `${dish.description} ${dish.portion}, ${formatRub(dish.price)}. Доставка за ${restaurant.delivery.etaMinutes.from}–${restaurant.delivery.etaMinutes.to} минут.`;
+  const description = `${dish.description} ${dish.portion}, ${formatRub(dish.price)}. Доставка и самовывоз.`;
   return {
     title: dish.name,
     description,

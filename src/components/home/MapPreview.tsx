@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { Hanko } from "@/components/brand/Hanko";
-import { restaurant } from "@/config/restaurant";
 
 /** Фирменная схема вместо карты: пруд, бульвар, переулки и печать на месте ресторана. */
 function MapSchematic() {
@@ -61,11 +60,11 @@ async function StaticMapImage() {
 }
 
 /** Карта для блока «Как нас найти»: статичная карта Яндекса при наличии ключа, иначе фирменная схема. */
-export function MapPreview() {
+export function MapPreview({ name, address }: { name: string; address: string }) {
   return (
     <div
       role="img"
-      aria-label={`Карта: ${restaurant.address.full}`}
+      aria-label={`Карта: ${address}`}
       className="relative aspect-4/3 overflow-hidden rounded-card border border-line bg-coal"
     >
       <MapSchematic />
@@ -74,7 +73,7 @@ export function MapPreview() {
       </Suspense>
       <div className="absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-full flex-col items-center">
         <span className="mb-1 inline-flex h-3 items-center rounded-full bg-paper px-1.5 text-sm font-semibold whitespace-nowrap text-ink shadow-pop">
-          {restaurant.name}
+          {name}
         </span>
         <Hanko className="size-5" />
       </div>

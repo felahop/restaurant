@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import { ArrowRight, CalendarDays, CloudOff, CreditCard, MapPin, MoonStar, ShoppingBag } from "lucide-react";
 import { BrushStroke } from "@/components/brand/BrushStroke";
 import { Hanko } from "@/components/brand/Hanko";
 import { KanjiBackdrop } from "@/components/brand/KanjiBackdrop";
 import { Logo } from "@/components/brand/Logo";
-import { Footer } from "@/components/site/Footer";
-import { TopBar } from "@/components/site/TopBar";
+import { Footer, SiteFooter } from "@/components/site/Footer";
+import { TopBar, TopBarFallback } from "@/components/site/TopBar";
 import { Badge, DishBadge, SpiceLevel } from "@/components/ui/Badge";
 import { Button, ButtonLink, IconButton } from "@/components/ui/Button";
 import { Checkbox, Radio } from "@/components/ui/Choice";
@@ -447,10 +447,14 @@ export default function StyleguidePage() {
 
       <Section id="chrome" title="Плашка и подвал">
         <div className="overflow-hidden rounded-card border border-line">
-          <TopBar />
+          <Suspense fallback={<TopBarFallback />}>
+            <TopBar />
+          </Suspense>
         </div>
         <div className="overflow-hidden rounded-card border border-line">
-          <Footer />
+          <Suspense fallback={<Footer info={null} />}>
+            <SiteFooter />
+          </Suspense>
         </div>
       </Section>
 

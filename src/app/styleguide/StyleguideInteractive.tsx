@@ -8,6 +8,7 @@ import { PhoneField } from "@/components/ui/PhoneField";
 import { QuantityStepper } from "@/components/ui/QuantityStepper";
 import { SegmentedControl } from "@/components/ui/Choice";
 import { Eyebrow } from "@/components/ui/Typography";
+import { restaurant } from "@/config/restaurant";
 import { demoDishes } from "@/data/demo-dishes";
 import type { DishCardData } from "@/types/dish";
 
@@ -29,7 +30,15 @@ export function DishCardsDemo() {
   return (
     <div className="flex flex-col gap-4">
       <div className="overflow-hidden rounded-card border border-line">
-        <Header cartCount={count} cartTotal={total} />
+        <Header
+          phone={
+            <a href={`tel:${restaurant.contacts.phoneE164}`} className="px-1.5 font-semibold text-fg tabular-nums">
+              {restaurant.contacts.phoneDisplay}
+            </a>
+          }
+          cartCount={count}
+          cartTotal={total}
+        />
       </div>
       <p className="text-sm text-fg-muted">
         Шапка выше связана с карточками: добавьте блюдо, и счётчик корзины «подпрыгнет».

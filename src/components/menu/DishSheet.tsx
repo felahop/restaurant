@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { IconButton } from "@/components/ui/Button";
@@ -10,6 +10,13 @@ import { IconButton } from "@/components/ui/Button";
  * Закрывается кнопкой, Escape, касанием фона и жестом «назад» — URL при этом возвращается к меню.
  */
 export function DishSheet({ children, titleId }: { children: ReactNode; titleId: string }) {
+  const pathname = usePathname();
+  // Ушли со страницы блюда (например, в корзину) — шторка закрывается сама.
+  if (!pathname.startsWith("/menu/")) return null;
+  return <SheetDialog titleId={titleId}>{children}</SheetDialog>;
+}
+
+function SheetDialog({ children, titleId }: { children: ReactNode; titleId: string }) {
   const router = useRouter();
   const ref = useRef<HTMLDialogElement>(null);
 

@@ -6,12 +6,14 @@ import { DishSheet } from "@/components/menu/DishSheet";
 export default function DishSheetPage({ params }: { params: Promise<{ slug: string }> }) {
   const titleId = "dish-sheet-title";
   return (
-    <DishSheet titleId={titleId}>
-      <Suspense fallback={<DishSkeleton variant="sheet" />}>
-        {params.then(({ slug }) => (
-          <DishLoader slug={slug} variant="sheet" titleId={titleId} />
-        ))}
-      </Suspense>
-    </DishSheet>
+    <Suspense fallback={null}>
+      <DishSheet titleId={titleId}>
+        <Suspense fallback={<DishSkeleton variant="sheet" />}>
+          {params.then(({ slug }) => (
+            <DishLoader slug={slug} variant="sheet" titleId={titleId} />
+          ))}
+        </Suspense>
+      </DishSheet>
+    </Suspense>
   );
 }

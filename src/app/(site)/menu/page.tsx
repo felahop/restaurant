@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { connection } from "next/server";
+import { PromoBanners } from "@/components/home/PromoBanners";
 import { MenuBrowser } from "@/components/menu/MenuBrowser";
 import { DishCardSkeleton } from "@/components/site/DishCard";
 import { Eyebrow } from "@/components/ui/Typography";
@@ -9,7 +10,7 @@ import { getMenu } from "@/server/menu";
 
 export const metadata: Metadata = {
   title: "Меню",
-  description: `Меню ${restaurant.name}: рамен, вок, бао и димсамы, роллы, супы, напитки и десерты. Доставка за ${restaurant.delivery.etaMinutes.from}–${restaurant.delivery.etaMinutes.to} минут.`,
+  description: `Меню ${restaurant.name}: рамен, вок, бао и димсамы, роллы, супы, напитки и десерты. Доставка и самовывоз.`,
   alternates: { canonical: "/menu" },
 };
 
@@ -39,6 +40,9 @@ export default function MenuPage() {
         <Eyebrow>Доставка и самовывоз</Eyebrow>
         <h1 className="font-display text-h1 text-fg">Меню</h1>
       </header>
+      <Suspense fallback={null}>
+        <PromoBanners className="pb-2" />
+      </Suspense>
       <Suspense fallback={<MenuSkeleton />}>
         <MenuData />
       </Suspense>

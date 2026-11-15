@@ -1,8 +1,7 @@
-import { CartAnnouncer } from "@/components/site/CartAnnouncer";
-import { Footer } from "@/components/site/Footer";
 import { Suspense } from "react";
-import { SiteHeader, SiteHeaderFallback, SiteMobileCartBar } from "@/components/site/SiteChrome";
-import { TopBar } from "@/components/site/TopBar";
+import { CartAnnouncer } from "@/components/site/CartAnnouncer";
+import { SiteMobileCartBar } from "@/components/site/SiteChrome";
+import { SiteBottom, SiteTop } from "@/components/site/SiteFrame";
 
 export default function SiteLayout({ children, sheet }: { children: React.ReactNode; sheet: React.ReactNode }) {
   return (
@@ -13,13 +12,10 @@ export default function SiteLayout({ children, sheet }: { children: React.ReactN
       >
         Перейти к содержимому
       </a>
-      <TopBar />
-      <Suspense fallback={<SiteHeaderFallback />}>
-        <SiteHeader />
-      </Suspense>
+      <SiteTop />
       <main id="main">{children}</main>
       {sheet}
-      <Footer />
+      <SiteBottom />
       <Suspense fallback={null}>
         <SiteMobileCartBar />
       </Suspense>

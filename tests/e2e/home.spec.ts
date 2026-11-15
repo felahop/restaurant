@@ -7,6 +7,10 @@ test.describe("главная", () => {
     await expect(hero.getByRole("link", { name: "Заказать доставку" })).toHaveAttribute("href", "/menu");
     await expect(hero.getByRole("link", { name: "Забронировать стол" })).toHaveAttribute("href", "/booking");
 
+    // Акции, отзывы и контакты приходят из админ-панели потоком — дожидаемся последней секции.
+    await expect(page.locator("main #promo-title")).toBeAttached();
+    await expect(page.locator("main #reviews-title")).toBeAttached();
+    await expect(page.locator("main #find-title")).toBeAttached();
     const headings = await page.locator("main h2").allTextContents();
     expect(headings).toEqual([
       "Хиты",

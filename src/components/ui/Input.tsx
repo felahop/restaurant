@@ -3,8 +3,11 @@ import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Field, fieldControlStyles } from "./Field";
 
-export function Input({ className, ...rest }: ComponentProps<"input">) {
-  return <input className={cn(fieldControlStyles, "h-6", className)} {...rest} />;
+/**
+ * Поле без подписи. Ширина — 100 % родителя (задавайте её обёрткой), dense — компактная высота 44 px для плотных списков админки.
+ */
+export function Input({ className, dense, ...rest }: ComponentProps<"input"> & { dense?: boolean }) {
+  return <input className={cn(fieldControlStyles, dense ? "h-5.5" : "h-6", className)} {...rest} />;
 }
 
 export function Textarea({ className, rows = 3, ...rest }: ComponentProps<"textarea">) {
