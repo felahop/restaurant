@@ -5,6 +5,7 @@ import { z } from "zod";
 import { weekHoursSchema } from "@/lib/admin/hours";
 import { fail, ok, zodFields, type ActionResult } from "@/lib/admin/result";
 import { toE164 } from "@/lib/phone";
+import { audit } from "@/server/admin/audit";
 import { guardAction } from "@/server/admin/guard";
 import { db } from "@/server/db";
 import { SETTINGS_TAG } from "@/server/settings";
@@ -40,6 +41,7 @@ const settingsSchema = z.object({
   scheduleStepMinutes: z.number().int().min(5).max(60),
   scheduleLeadMinutes: z.number().int().min(0).max(240),
   scheduleDaysAhead: z.number().int().min(1).max(7),
+  preorderAlertMinutes: z.number().int().min(15).max(24 * 60),
 });
 
 export type SettingsInput = z.input<typeof settingsSchema>;
@@ -65,5 +67,6 @@ export async function saveSettingsAction(input: SettingsInput): Promise<ActionRe
     },
   });
   updateTag(SETTINGS_TAG);
+  await audit(g.admin, { section: "settings", action: "settings.update", summary: "Изменил настройки ресторана" });
   return ok("Настройки сохранены — сайт уже обновился");
 }

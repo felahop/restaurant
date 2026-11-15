@@ -50,3 +50,47 @@ export async function getAnalytics(period: AnalyticsPeriod, now = new Date()) {
 }
 
 export type AnalyticsData = Awaited<ReturnType<typeof getAnalytics>>;
+
+/** Данные для CSV-выгрузки за период. Персональных данных гостей (имя, телефон, адрес) в выгрузке нет. */
+export async function getExportRows(kind: "orders" | "revenue" | "dishes", period: AnalyticsPeriod, now = new Date()) {
+  const { timezone } = await getSettings();
+  const range = periodRange(period, now, timezone);
+  const inRange = { createdAt: { gte: range.from, lt: range.to } };
+  const counted: Prisma.OrderWhereInput = { status: COUNTED, ...inRange };
+
+  if (kind === "orders") {
+    const orders = await db.order.findMany({
+      where: inRange,
+      orderBy: { createdAt: "asc" },
+      select: {
+        number: true,
+        createdAt: true,
+        scheduledFor: true,
+        type: true,
+        status: true,
+        paymentMethod: true,
+        paymentStatus: true,
+        subtotal: true,
+        deliveryFee: true,
+        discount: true,
+        bonusSpent: true,
+        total: true,
+        promoCodeRaw: true,
+        cancelReason: true,
+        zone: { select: { name: true } },
+      },
+    });
+    return { kind: "orders" as const, timezone, range, orders };
+  }
+  if (kind === "dishes") {
+    const dishes = await db.orderItem.groupBy({
+      by: ["name"],
+      where: { order: counted },
+      _sum: { quantity: true, lineTotal: true },
+      orderBy: [{ _sum: { quantity: "desc" } }, { name: "asc" }],
+    });
+    return { kind: "dishes" as const, timezone, range, dishes: dishes.map((d) => ({ name: d.name, quantity: d._sum.quantity ?? 0, revenue: d._sum.lineTotal ?? 0 })) };
+  }
+  const orders = await db.order.findMany({ where: counted, select: { createdAt: true, total: true } });
+  return { kind: "revenue" as const, timezone, range, series: bucketize(orders, range) };
+}

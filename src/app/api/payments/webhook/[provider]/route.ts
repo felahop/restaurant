@@ -1,10 +1,7 @@
 import { after } from "next/server";
-import { formatRub } from "@/lib/money";
-import { paymentLabels } from "@/lib/order/schemas";
-import { db } from "@/server/db";
 import { jsonError } from "@/server/http";
-import { notifySafely } from "@/server/notify";
-import { getPaymentProvider, isMockPayments, siteUrl } from "@/server/payments";
+import { notifyOrderIfDue } from "@/server/order-notify";
+import { getPaymentProvider, isMockPayments } from "@/server/payments";
 import { processPaymentNotification } from "@/server/payments/process";
 
 /**
@@ -24,21 +21,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
   try {
     const result = await processPaymentNotification(provider, notification);
     if (result.result === "paid" && result.firstTime) {
-      after(async () => {
-        const order = await db.order.findUnique({ where: { id: result.orderId }, include: { items: true } });
-        if (!order) return;
-        await notifySafely((n) =>
-          n.newOrder({
-            number: order.number,
-            type: order.type,
-            total: order.total,
-            paymentLabel: `${paymentLabels[order.paymentMethod]} · оплачен ${formatRub(order.total)}`,
-            whenLabel: order.scheduledFor ? "ко времени" : "как можно скорее",
-            itemsCount: order.items.reduce((s, i) => s + i.quantity, 0),
-            adminUrl: `${siteUrl()}/admin/orders/${order.id}`,
-          }),
-        );
-      });
+      after(() => notifyOrderIfDue(result.orderId));
     }
     return Response.json({ ok: true, result: result.result });
   } catch (e) {

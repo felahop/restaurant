@@ -3,6 +3,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { audit } from "@/server/admin/audit";
 import { createAdminSession } from "@/server/admin/auth";
 import { verifyPassword } from "@/server/admin/password";
 import { db } from "@/server/db";
@@ -33,5 +34,6 @@ export async function loginAction(_: LoginState, formData: FormData): Promise<Lo
 
   await createAdminSession(user.id);
   await db.adminUser.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+  await audit(user, { section: "auth", action: "auth.login", summary: "Вошёл в админ-панель" });
   redirect("/admin/orders");
 }

@@ -2,19 +2,18 @@ import { randomBytes } from "node:crypto";
 import { after } from "next/server";
 import { calculateQuote } from "@/lib/order/calc";
 import { isValidSlot } from "@/lib/order/schedule";
-import { ONLINE_METHODS, orderRequestSchema, paymentLabels } from "@/lib/order/schemas";
+import { ONLINE_METHODS, orderRequestSchema } from "@/lib/order/schemas";
 import { toE164 } from "@/lib/phone";
 import { loadQuoteContext, pointFromToken, scheduleInfo } from "@/server/checkout";
 import { db } from "@/server/db";
 import { clientIp, isSameOrigin, jsonError } from "@/server/http";
-import { notifySafely } from "@/server/notify";
+import { notifyOrderIfDue } from "@/server/order-notify";
 import { startPayment } from "@/server/payments/start";
 import { rateLimit } from "@/server/rate-limit";
 import { getSettings } from "@/server/settings";
 
 class PromoExhaustedError extends Error {}
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
 /** Оформление заказа. Суммы пересчитываются на сервере по ценам из базы. */
 export async function POST(request: Request) {
@@ -146,27 +145,8 @@ export async function POST(request: Request) {
     throw e;
   }
 
-  if (!online) {
-    const whenLabel =
-      input.when.kind === "asap"
-        ? "как можно скорее"
-        : (schedule.slots.find(
-            (s) => s.value === new Date(input.when.kind === "slot" ? input.when.slot : 0).toISOString(),
-          )?.label ?? "ко времени");
-    after(() =>
-      notifySafely((n) =>
-        n.newOrder({
-          number: order.number,
-          type: input.type,
-          total: quote.total,
-          paymentLabel: paymentLabels[input.payment],
-          whenLabel,
-          itemsCount: quote.lines.reduce((s, l) => s + l.qty, 0),
-          adminUrl: `${SITE_URL}/admin/orders/${order.id}`,
-        }),
-      ),
-    );
-  }
+  // Ресторан узнаёт о заказе сразу, о предзаказе — за N минут до времени (см. src/server/order-notify.ts).
+  if (!online) after(() => notifyOrderIfDue(order.id));
 
   if (online) {
     // Заказ сохранён и ждёт оплаты. Оплаченным он станет только по уведомлению платёжного сервиса.

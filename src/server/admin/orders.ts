@@ -6,10 +6,11 @@ import { db } from "@/server/db";
 import { bonusForOrder } from "@/server/payments/process";
 import { getSettings } from "@/server/settings";
 
-export type FeedFilter = "active" | "awaiting" | "done" | "canceled" | "all";
+export type FeedFilter = "active" | "upcoming" | "awaiting" | "done" | "canceled" | "all";
 
 const FILTER_STATUSES: Record<FeedFilter, OrderStatusValue[] | null> = {
   active: ["ACCEPTED", "COOKING", "DELIVERING", "READY"],
+  upcoming: ["ACCEPTED", "COOKING", "DELIVERING", "READY"],
   awaiting: ["AWAITING_PAYMENT"],
   done: ["COMPLETED"],
   canceled: ["CANCELED"],
@@ -54,6 +55,18 @@ export type FeedOrder = Prisma.OrderGetPayload<{ select: typeof feedSelect }>;
 export async function listOrders(opts: { date?: string | null; filter?: FeedFilter }) {
   const { from, to, iso } = await dayRange(opts.date);
   const statuses = FILTER_STATUSES[opts.filter ?? "active"];
+  const { preorderAlertMinutes } = await getSettings();
+  if (opts.filter === "upcoming") {
+    // Все будущие предзаказы на любые даты — от сегодняшнего дня, ближайшие сверху.
+    const today = await dayRange(null);
+    const orders = await db.order.findMany({
+      where: { status: { in: statuses! }, scheduledFor: { gte: today.from } },
+      orderBy: [{ scheduledFor: "asc" }],
+      select: feedSelect,
+      take: 300,
+    });
+    return { date: iso, orders, alertMinutes: preorderAlertMinutes };
+  }
   // Заказ ко времени попадает в ленту дня, на который он назначен.
   const orders = await db.order.findMany({
     where: {
@@ -67,7 +80,7 @@ export async function listOrders(opts: { date?: string | null; filter?: FeedFilt
     select: feedSelect,
     take: 300,
   });
-  return { date: iso, orders };
+  return { date: iso, orders, alertMinutes: preorderAlertMinutes };
 }
 
 export async function getAdminOrder(id: string) {
@@ -110,6 +123,6 @@ export async function changeOrderStatus(orderId: string, to: OrderStatusValue, c
         }
       }
     }
-    return { number: order.number };
+    return { number: order.number, from: order.status, type: order.type };
   });
 }

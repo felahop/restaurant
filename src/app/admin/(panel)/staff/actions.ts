@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { fail, ok, zodFields, type ActionResult } from "@/lib/admin/result";
+import { audit } from "@/server/admin/audit";
 import { guardAction } from "@/server/admin/guard";
 import { hashPassword, passwordProblem } from "@/server/admin/password";
 import { db } from "@/server/db";
@@ -22,7 +23,13 @@ export async function createStaffAction(input: z.input<typeof staffSchema>): Pro
   if (problem) return fail(problem, { password: problem });
   if (await db.adminUser.findUnique({ where: { login: parsed.data.login } })) return fail("Такой логин уже есть", { login: "Занят" });
   const { password, ...rest } = parsed.data;
-  await db.adminUser.create({ data: { ...rest, passwordHash: await hashPassword(password) } });
+  const created = await db.adminUser.create({ data: { ...rest, passwordHash: await hashPassword(password) } });
+  await audit(g.admin, {
+    section: "staff",
+    action: "staff.create",
+    entityId: created.id,
+    summary: `Добавил сотрудника ${created.name} (${created.login}), роль: ${created.role === "OWNER" ? "владелец" : "менеджер"}`,
+  });
   return ok("Сотрудник добавлен");
 }
 
@@ -35,11 +42,17 @@ export async function updateStaffAction(id: string, input: { role: "OWNER" | "MA
     const owners = await db.adminUser.count({ where: { role: "OWNER", isActive: true, id: { not: id } } });
     if (owners === 0) return fail("Должен остаться хотя бы один активный владелец");
   }
-  await db.$transaction([
+  const [updated] = await db.$transaction([
     db.adminUser.update({ where: { id }, data: { role, isActive: Boolean(input.isActive) } }),
     // Выключенный сотрудник сразу теряет доступ.
     ...(input.isActive ? [] : [db.adminSession.deleteMany({ where: { adminUserId: id } })]),
   ]);
+  await audit(g.admin, {
+    section: "staff",
+    action: "staff.update",
+    entityId: id,
+    summary: `${updated.name} (${updated.login}): роль — ${role === "OWNER" ? "владелец" : "менеджер"}, доступ ${updated.isActive ? "есть" : "закрыт"}`,
+  });
   return ok("Сохранено");
 }
 
@@ -48,9 +61,10 @@ export async function resetStaffPasswordAction(id: string, password: string): Pr
   if ("denied" in g) return g.denied;
   const problem = passwordProblem(password);
   if (problem) return fail(problem);
-  await db.$transaction([
+  const [updated] = await db.$transaction([
     db.adminUser.update({ where: { id }, data: { passwordHash: await hashPassword(password) } }),
     db.adminSession.deleteMany({ where: { adminUserId: id } }),
   ]);
+  await audit(g.admin, { section: "staff", action: "staff.password", entityId: id, summary: `Сменил пароль сотруднику ${updated.name} (${updated.login})` });
   return ok("Пароль изменён, сотрудник войдёт заново");
 }

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Download } from "lucide-react";
 import { AdminPageHeader } from "@/components/admin/PageHeader";
 import { KpiTiles } from "@/components/admin/analytics/KpiTiles";
 import { RevenueChart } from "@/components/admin/analytics/RevenueChart";
@@ -40,6 +41,26 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
         ))}
       </nav>
       <KpiTiles summary={data.summary} deltas={data.deltas} compare={meta.compare} />
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm">
+        <span className="text-fg-muted">Скачать CSV за период «{meta.label}»:</span>
+        {(
+          [
+            ["orders", "заказы"],
+            ["revenue", "выручка"],
+            ["dishes", "блюда"],
+          ] as const
+        ).map(([kind, label]) => (
+          <a
+            key={kind}
+            href={`/api/admin/export/${kind}?period=${period}`}
+            download
+            className="inline-flex min-h-5.5 items-center gap-0.5 font-semibold text-fg underline-offset-4 hover:underline"
+          >
+            <Download className="size-2" aria-hidden="true" />
+            {label}
+          </a>
+        ))}
+      </div>
       <RevenueChart
         title={`Выручка ${meta.chart}`}
         bars={data.series.map(({ label, tick, minor, revenue, orders }) => ({ label, tick, minor, revenue, orders }))}

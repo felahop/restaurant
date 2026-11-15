@@ -5,6 +5,7 @@ import { WEEKDAYS, type WeekHoursInput } from "@/lib/admin/hours";
 import { parsePolygon } from "@/lib/geo/polygon";
 import { requireAdmin } from "@/server/admin/auth";
 import { db } from "@/server/db";
+import { yandexMapsConfig } from "@/server/maps/config";
 
 export const metadata: Metadata = { title: "Доставка" };
 /** Админка: переходы могут ждать данные (свежесть важнее мгновенного кадра). */
@@ -12,9 +13,10 @@ export const instant = false;
 
 export default async function DeliveryAdminPage() {
   await requireAdmin("delivery");
-  const [s, rows] = await Promise.all([
+  const [s, rows, maps] = await Promise.all([
     db.settings.findUniqueOrThrow({ where: { id: 1 } }),
     db.deliveryZone.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }),
+    yandexMapsConfig(),
   ]);
   const hours = s.orderHours as WeekHoursInput;
   const zones = rows.map((z) => ({
@@ -37,6 +39,8 @@ export default async function DeliveryAdminPage() {
         orderHours={Object.fromEntries(WEEKDAYS.map((d) => [d, hours[d] ?? []])) as WeekHoursInput}
         zones={zones}
         center={{ lat: s.lat, lng: s.lng }}
+        maps={maps}
+        restaurantName={s.name}
       />
     </div>
   );

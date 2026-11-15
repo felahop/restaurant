@@ -4,6 +4,7 @@ import { updateTag } from "next/cache";
 import { z } from "zod";
 import { fail, ok, zodFields, type ActionResult } from "@/lib/admin/result";
 import { normalizePromoCode } from "@/lib/order/calc";
+import { audit } from "@/server/admin/audit";
 import { guardAction } from "@/server/admin/guard";
 import { PROMOTIONS_TAG } from "@/server/content";
 import { db } from "@/server/db";
@@ -44,8 +45,16 @@ export async function savePromoCodeAction(id: string | null, input: PromoInput):
   };
   const clash = await db.promoCode.findUnique({ where: { code: data.code }, select: { id: true } });
   if (clash && clash.id !== id) return fail("Такой код уже есть", { code: "Такой код уже есть" });
-  if (id) await db.promoCode.update({ where: { id }, data });
-  else await db.promoCode.create({ data });
+  const saved = id ? await db.promoCode.update({ where: { id }, data }) : await db.promoCode.create({ data });
+  await audit(g.admin, {
+    section: "marketing",
+    action: id ? "promo.update" : "promo.create",
+    entityId: saved.id,
+    summary:
+      `${id ? "Изменил" : "Создал"} промокод ${saved.code}: ` +
+      (saved.type === "PERCENT" ? `${saved.value} %` : `${saved.value / 100} ₽`) +
+      (saved.isActive ? "" : " (выключен)"),
+  });
   return ok("Промокод сохранён");
 }
 
@@ -54,10 +63,12 @@ export async function deletePromoCodeAction(id: string): Promise<ActionResult> {
   if ("denied" in g) return g.denied;
   const used = await db.order.count({ where: { promoCodeId: id } });
   if (used) {
-    await db.promoCode.update({ where: { id }, data: { isActive: false } });
+    const promo = await db.promoCode.update({ where: { id }, data: { isActive: false }, select: { code: true } });
+    await audit(g.admin, { section: "marketing", action: "promo.disable", entityId: id, summary: `Выключил промокод ${promo.code}` });
     return ok("Промокод использовали в заказах — он выключен, а не удалён");
   }
-  await db.promoCode.delete({ where: { id } });
+  const promo = await db.promoCode.delete({ where: { id }, select: { code: true } });
+  await audit(g.admin, { section: "marketing", action: "promo.delete", entityId: id, summary: `Удалил промокод ${promo.code}` });
   return ok("Промокод удалён");
 }
 
@@ -91,16 +102,30 @@ export async function savePromotionAction(id: string | null, input: PromotionInp
   if ("denied" in g) return g.denied;
   const parsed = promotionSchema.safeParse(input);
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Проверьте поля", zodFields(parsed.error.issues));
-  if (id) await db.promotion.update({ where: { id }, data: parsed.data });
-  else await db.promotion.create({ data: parsed.data });
+  const saved = id
+    ? await db.promotion.update({ where: { id }, data: parsed.data })
+    : await db.promotion.create({ data: parsed.data });
   updateTag(PROMOTIONS_TAG);
+  const kind = saved.kind === "BANNER" ? "баннер" : "акцию";
+  await audit(g.admin, {
+    section: "marketing",
+    action: id ? "promotion.update" : "promotion.create",
+    entityId: saved.id,
+    summary: `${id ? "Изменил" : "Создал"} ${kind} «${saved.title}»${saved.isActive ? "" : " (выключена)"}`,
+  });
   return ok("Акция сохранена");
 }
 
 export async function deletePromotionAction(id: string): Promise<ActionResult> {
   const g = await guardAction("marketing");
   if ("denied" in g) return g.denied;
-  await db.promotion.delete({ where: { id } });
+  const removed = await db.promotion.delete({ where: { id }, select: { title: true, kind: true } });
   updateTag(PROMOTIONS_TAG);
+  await audit(g.admin, {
+    section: "marketing",
+    action: "promotion.delete",
+    entityId: id,
+    summary: `Удалил ${removed.kind === "BANNER" ? "баннер" : "акцию"} «${removed.title}»`,
+  });
   return ok("Акция удалена");
 }

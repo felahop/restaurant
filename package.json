@@ -50,6 +50,7 @@
     "@types/pg": "8.23.1",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
+    "@yandex/ymaps3-types": "1.0.21772363",
     "dotenv": "18.0.10",
     "eslint": "9.39.5",
     "eslint-config-next": "16.4.6",

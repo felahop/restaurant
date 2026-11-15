@@ -11,7 +11,8 @@ export type AdminSection =
   | "reviews"
   | "analytics"
   | "settings"
-  | "staff";
+  | "staff"
+  | "journal";
 
 const MANAGER_SECTIONS: readonly AdminSection[] = ["orders", "menu", "reservations"];
 

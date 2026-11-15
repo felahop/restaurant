@@ -3,7 +3,9 @@
 import { updateTag } from "next/cache";
 import { z } from "zod";
 import { fail, ok, zodFields, type ActionResult } from "@/lib/admin/result";
-import { AdminAccessError, assertAdmin } from "@/server/admin/auth";
+import { audit } from "@/server/admin/audit";
+import type { CurrentAdmin } from "@/server/admin/auth";
+import { guardAction } from "@/server/admin/guard";
 import { uniqueCategorySlug, uniqueDishSlug } from "@/server/admin/menu";
 import { db } from "@/server/db";
 import { MENU_TAG } from "@/server/menu";
@@ -52,19 +54,12 @@ const dishSchema = z
 
 export type DishInput = z.input<typeof dishSchema>;
 
-async function guard(): Promise<ActionResult | null> {
-  try {
-    await assertAdmin("menu");
-    return null;
-  } catch (e) {
-    if (e instanceof AdminAccessError) return fail(e.message);
-    throw e;
-  }
-}
+const log = (admin: CurrentAdmin, action: string, summary: string, entityId?: string) =>
+  audit(admin, { section: "menu", action, summary, entityId });
 
 export async function saveDishAction(id: string | null, input: DishInput): Promise<ActionResult<{ id: string }>> {
-  const denied = await guard();
-  if (denied) return denied;
+  const g = await guardAction("menu");
+  if ("denied" in g) return g.denied;
   const parsed = dishSchema.safeParse(input);
   if (!parsed.success) return fail("Проверьте поля формы", zodFields(parsed.error.issues));
   const { groupIds, slug: slugInput, ...data } = parsed.data;
@@ -94,20 +89,22 @@ export async function saveDishAction(id: string | null, input: DishInput): Promi
     return saved;
   });
   updateTag(MENU_TAG);
+  await log(g.admin, id ? "dish.update" : "dish.create", `${id ? "Изменил" : "Создал"} блюдо «${dish.name}», цена ${dish.price / 100} ₽`, dish.id);
   return ok(id ? "Блюдо сохранено" : "Блюдо создано — оно уже в меню", { id: dish.id });
 }
 
 export async function toggleAvailabilityAction(dishId: string, isAvailable: boolean): Promise<ActionResult> {
-  const denied = await guard();
-  if (denied) return denied;
+  const g = await guardAction("menu");
+  if ("denied" in g) return g.denied;
   const dish = await db.dish.update({ where: { id: dishId }, data: { isAvailable: Boolean(isAvailable) }, select: { name: true } });
   updateTag(MENU_TAG);
+  await log(g.admin, isAvailable ? "dish.available" : "dish.stop", isAvailable ? `Вернул в продажу «${dish.name}»` : `Поставил в стоп-лист «${dish.name}»`, dishId);
   return ok(isAvailable ? `«${dish.name}» снова в продаже` : `«${dish.name}» в стоп-листе`);
 }
 
 export async function duplicateDishAction(dishId: string): Promise<ActionResult<{ id: string }>> {
-  const denied = await guard();
-  if (denied) return denied;
+  const g = await guardAction("menu");
+  if ("denied" in g) return g.denied;
   const src = await db.dish.findFirst({ where: { id: dishId, deletedAt: null }, include: { modifierGroups: true } });
   if (!src) return fail("Блюдо не найдено");
   const { id: _id, createdAt: _c, updatedAt: _u, modifierGroups, ...rest } = src;
@@ -125,26 +122,30 @@ export async function duplicateDishAction(dishId: string): Promise<ActionResult<
     },
   });
   updateTag(MENU_TAG);
+  await log(g.admin, "dish.duplicate", `Скопировал блюдо «${src.name}»`, copy.id);
   return ok("Копия создана и пока в стоп-листе", { id: copy.id });
 }
 
 /** Мягкое удаление: блюдо пропадает из меню, история заказов остаётся целой. */
 export async function deleteDishAction(dishId: string): Promise<ActionResult> {
-  const denied = await guard();
-  if (denied) return denied;
-  await db.dish.update({ where: { id: dishId }, data: { deletedAt: new Date(), isHit: false } });
+  const g = await guardAction("menu");
+  if ("denied" in g) return g.denied;
+  const removed = await db.dish.update({ where: { id: dishId }, data: { deletedAt: new Date(), isHit: false }, select: { name: true } });
   updateTag(MENU_TAG);
+  await log(g.admin, "dish.delete", `Удалил из меню «${removed.name}»`, dishId);
   return ok("Блюдо удалено из меню");
 }
 
 const idsSchema = z.array(z.string().min(1)).max(500);
 
 export async function reorderDishesAction(categoryId: string, orderedIds: string[]): Promise<ActionResult> {
-  const denied = await guard();
-  if (denied) return denied;
+  const g = await guardAction("menu");
+  if ("denied" in g) return g.denied;
   const ids = idsSchema.parse(orderedIds);
   await db.$transaction(ids.map((id, i) => db.dish.updateMany({ where: { id, categoryId }, data: { sortOrder: (i + 1) * 10 } })));
   updateTag(MENU_TAG);
+  const cat = await db.category.findUnique({ where: { id: categoryId }, select: { name: true } });
+  await log(g.admin, "dish.reorder", `Поменял порядок блюд в категории «${cat?.name ?? "—"}»`, categoryId);
   return ok("Порядок сохранён");
 }
 
@@ -155,36 +156,45 @@ const categorySchema = z.object({
 });
 
 export async function saveCategoryAction(id: string | null, input: z.input<typeof categorySchema>): Promise<ActionResult> {
-  const denied = await guard();
-  if (denied) return denied;
+  const g = await guardAction("menu");
+  if ("denied" in g) return g.denied;
   const parsed = categorySchema.safeParse(input);
   if (!parsed.success) return fail("Проверьте поля", zodFields(parsed.error.issues));
+  let savedId = id;
   if (id) {
     await db.category.update({ where: { id }, data: parsed.data });
   } else {
     const max = (await db.category.aggregate({ _max: { sortOrder: true } }))._max.sortOrder ?? 0;
-    await db.category.create({ data: { ...parsed.data, slug: await uniqueCategorySlug(parsed.data.name), sortOrder: max + 10 } });
+    savedId = (await db.category.create({ data: { ...parsed.data, slug: await uniqueCategorySlug(parsed.data.name), sortOrder: max + 10 } })).id;
   }
   updateTag(MENU_TAG);
+  await log(
+    g.admin,
+    id ? "category.update" : "category.create",
+    `${id ? "Изменил" : "Создал"} категорию «${parsed.data.name}»${parsed.data.isHidden ? " (скрыта)" : ""}`,
+    savedId ?? undefined,
+  );
   return ok(id ? "Категория сохранена" : "Категория создана");
 }
 
 export async function reorderCategoriesAction(orderedIds: string[]): Promise<ActionResult> {
-  const denied = await guard();
-  if (denied) return denied;
+  const g = await guardAction("menu");
+  if ("denied" in g) return g.denied;
   const ids = idsSchema.parse(orderedIds);
   await db.$transaction(ids.map((id, i) => db.category.update({ where: { id }, data: { sortOrder: (i + 1) * 10 } })));
   updateTag(MENU_TAG);
+  await log(g.admin, "category.reorder", "Поменял порядок категорий");
   return ok("Порядок категорий сохранён");
 }
 
 export async function deleteCategoryAction(id: string): Promise<ActionResult> {
-  const denied = await guard();
-  if (denied) return denied;
+  const g = await guardAction("menu");
+  if ("denied" in g) return g.denied;
   const count = await db.dish.count({ where: { categoryId: id } });
   if (count > 0) return fail("В категории есть блюда (в том числе удалённые). Скройте её или перенесите блюда.");
-  await db.category.delete({ where: { id } });
+  const cat = await db.category.delete({ where: { id }, select: { name: true } });
   updateTag(MENU_TAG);
+  await log(g.admin, "category.delete", `Удалил категорию «${cat.name}»`, id);
   return ok("Категория удалена");
 }
 
@@ -211,12 +221,12 @@ const groupSchema = z
 export type GroupInput = z.input<typeof groupSchema>;
 
 export async function saveModifierGroupAction(id: string | null, input: GroupInput): Promise<ActionResult> {
-  const denied = await guard();
-  if (denied) return denied;
+  const g = await guardAction("menu");
+  if ("denied" in g) return g.denied;
   const parsed = groupSchema.safeParse(input);
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Проверьте поля", zodFields(parsed.error.issues));
   const { modifiers, ...group } = parsed.data;
-  await db.$transaction(async (tx) => {
+  const savedGroup = await db.$transaction(async (tx) => {
     const saved = id ? await tx.modifierGroup.update({ where: { id }, data: group }) : await tx.modifierGroup.create({ data: group });
     const keep = modifiers.filter((m) => m.id).map((m) => m.id!);
     // Убранные добавки удаляем: в старых заказах их названия и цены сохранены снимком.
@@ -226,15 +236,18 @@ export async function saveModifierGroupAction(id: string | null, input: GroupInp
       if (m.id) await tx.modifier.update({ where: { id: m.id, groupId: saved.id }, data });
       else await tx.modifier.create({ data: { ...data, groupId: saved.id } });
     }
+    return saved;
   });
   updateTag(MENU_TAG);
+  await log(g.admin, id ? "modifiers.update" : "modifiers.create", `${id ? "Изменил" : "Создал"} группу добавок «${savedGroup.name}»`, savedGroup.id);
   return ok("Группа добавок сохранена");
 }
 
 export async function deleteModifierGroupAction(id: string): Promise<ActionResult> {
-  const denied = await guard();
-  if (denied) return denied;
-  await db.modifierGroup.delete({ where: { id } });
+  const g = await guardAction("menu");
+  if ("denied" in g) return g.denied;
+  const group = await db.modifierGroup.delete({ where: { id }, select: { name: true } });
   updateTag(MENU_TAG);
+  await log(g.admin, "modifiers.delete", `Удалил группу добавок «${group.name}»`, id);
   return ok("Группа удалена у всех блюд");
 }

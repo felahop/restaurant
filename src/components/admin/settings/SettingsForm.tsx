@@ -7,7 +7,7 @@ import type { WeekHoursInput } from "@/lib/admin/hours";
 import { saveSettingsAction, type SettingsInput } from "@/app/admin/(panel)/settings/actions";
 import { WeekHoursEditor } from "./WeekHoursEditor";
 
-export type SettingsFormValues = Omit<SettingsInput, "lat" | "lng" | "etaFromMin" | "etaToMin" | "pickupMinutes" | "bonusEarnPercent" | "bonusMaxSpendPercent" | "scheduleStepMinutes" | "scheduleLeadMinutes" | "scheduleDaysAhead" | "openingHours" | "topBarItems"> & {
+export type SettingsFormValues = Omit<SettingsInput, "lat" | "lng" | "etaFromMin" | "etaToMin" | "pickupMinutes" | "bonusEarnPercent" | "bonusMaxSpendPercent" | "scheduleStepMinutes" | "scheduleLeadMinutes" | "scheduleDaysAhead" | "preorderAlertMinutes" | "openingHours" | "topBarItems"> & {
   lat: string;
   lng: string;
   etaFromMin: string;
@@ -18,6 +18,7 @@ export type SettingsFormValues = Omit<SettingsInput, "lat" | "lng" | "etaFromMin
   scheduleStepMinutes: string;
   scheduleLeadMinutes: string;
   scheduleDaysAhead: string;
+  preorderAlertMinutes: string;
   openingHours: WeekHoursInput;
   topBarItems: string[];
 };
@@ -56,6 +57,7 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
         scheduleStepMinutes: n(v.scheduleStepMinutes),
         scheduleLeadMinutes: n(v.scheduleLeadMinutes),
         scheduleDaysAhead: n(v.scheduleDaysAhead),
+        preorderAlertMinutes: n(v.preorderAlertMinutes),
         topBarItems: v.topBarItems.map((t) => t.trim()).filter(Boolean),
       });
       setErrors(res.ok ? {} : (res.fields ?? {}));
@@ -139,6 +141,10 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
           {text("scheduleStepMinutes", "Шаг «ко времени», мин", { inputMode: "numeric" })}
           {text("scheduleLeadMinutes", "Ближайшее «ко времени» через, мин", { inputMode: "numeric" })}
           {text("scheduleDaysAhead", "Дней вперёд для заказа", { inputMode: "numeric" })}
+          {text("preorderAlertMinutes", "Сигнал о предзаказе за, мин", {
+            inputMode: "numeric",
+            hint: "Звук в ленте и уведомление в Telegram",
+          })}
         </div>
       </Section>
 

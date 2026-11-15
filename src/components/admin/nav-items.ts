@@ -4,6 +4,7 @@ import {
   ClipboardList,
   MapPinned,
   MessageSquareQuote,
+  ScrollText,
   Settings,
   Tag,
   Users,
@@ -22,4 +23,5 @@ export const ADMIN_NAV: { section: AdminSection; href: string; label: string; Ic
   { section: "analytics", href: "/admin/analytics", label: "Аналитика", Icon: BarChart3 },
   { section: "settings", href: "/admin/settings", label: "Настройки", Icon: Settings },
   { section: "staff", href: "/admin/staff", label: "Сотрудники", Icon: Users },
+  { section: "journal", href: "/admin/journal", label: "Журнал", Icon: ScrollText },
 ];

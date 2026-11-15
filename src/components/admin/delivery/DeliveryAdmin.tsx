@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Plus } from "lucide-react";
+import { MapPinned, Plus } from "lucide-react";
+import { YandexMap } from "@/components/maps/YandexMap";
 import { Button } from "@/components/ui/Button";
 import { Select, TextareaField, TextField } from "@/components/ui/Input";
 import { Switch } from "@/components/ui/Switch";
@@ -150,11 +151,16 @@ export function DeliveryAdmin({
   orderHours,
   zones,
   center,
+  maps,
+  restaurantName,
 }: {
   paused: boolean;
   orderHours: WeekHoursInput;
   zones: Zone[];
   center: { lat: number; lng: number };
+  /** Ключ JS API Яндекс Карт; null — карты нет, остаётся схема. */
+  maps: { apiKey: string; scriptUrl: string } | null;
+  restaurantName: string;
 }) {
   const router = useRouter();
   const [isPaused, setPaused] = useState(paused);
@@ -207,6 +213,32 @@ export function DeliveryAdmin({
             {message}
           </p>
         </div>
+      </section>
+
+      <section aria-labelledby="zones-map-title" className="flex flex-col gap-1.5 rounded-card border border-line bg-surface p-2 md:p-3">
+        <h2 id="zones-map-title" className="text-title font-semibold">
+          Зоны на карте
+        </h2>
+        {maps ? (
+          <YandexMap
+            apiKey={maps.apiKey}
+            scriptUrl={maps.scriptUrl}
+            center={center}
+            zones={zones.filter((z) => z.isActive && z.polygon.length >= 3)}
+            markerLabel={restaurantName}
+            label="Зоны доставки на Яндекс Карте"
+            className="aspect-4/3 md:aspect-video"
+            fallback={<p className="text-sm text-accent">Яндекс Карты не загрузились. Проверьте ключ и ограничения по адресу сайта.</p>}
+          />
+        ) : (
+          <div className="flex aspect-video flex-col items-center justify-center gap-1 rounded-card border border-dashed border-line-strong bg-surface-2 p-2 text-center">
+            <MapPinned className="size-3 text-fg-muted" aria-hidden="true" />
+            <p className="max-w-prose text-sm text-fg-muted">
+              Здесь будет Яндекс Карта с зонами. Добавьте ключ JavaScript API в переменную YANDEX_MAPS_JS_API_KEY — до тех пор
+              зоны редактируются на схеме ниже, а гости видят фирменную схему.
+            </p>
+          </div>
+        )}
       </section>
 
       <div className="flex flex-col gap-2">

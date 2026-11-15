@@ -4,6 +4,7 @@ import { updateTag } from "next/cache";
 import { z } from "zod";
 import { weekHoursSchema } from "@/lib/admin/hours";
 import { fail, ok, zodFields, type ActionResult } from "@/lib/admin/result";
+import { audit } from "@/server/admin/audit";
 import { guardAction } from "@/server/admin/guard";
 import { db } from "@/server/db";
 import { SETTINGS_TAG } from "@/server/settings";
@@ -14,6 +15,11 @@ export async function setOrdersPausedAction(paused: boolean): Promise<ActionResu
   if ("denied" in g) return g.denied;
   await db.settings.update({ where: { id: 1 }, data: { ordersPaused: Boolean(paused) } });
   updateTag(SETTINGS_TAG);
+  await audit(g.admin, {
+    section: "delivery",
+    action: paused ? "orders.pause" : "orders.resume",
+    summary: paused ? "Остановил приём заказов" : "Возобновил приём заказов",
+  });
   return ok(paused ? "Приём заказов остановлен" : "Приём заказов возобновлён");
 }
 
@@ -24,6 +30,7 @@ export async function saveOrderHoursAction(input: z.input<typeof weekHoursSchema
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Проверьте часы");
   await db.settings.update({ where: { id: 1 }, data: { orderHours: parsed.data } });
   updateTag(SETTINGS_TAG);
+  await audit(g.admin, { section: "delivery", action: "orderHours.update", summary: "Изменил часы приёма заказов" });
   return ok("Часы приёма заказов сохранены");
 }
 
@@ -49,16 +56,24 @@ export async function saveZoneAction(id: string | null, input: ZoneInput): Promi
   if ("denied" in g) return g.denied;
   const parsed = zoneSchema.safeParse(input);
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Проверьте поля", zodFields(parsed.error.issues));
-  if (id) await db.deliveryZone.update({ where: { id }, data: parsed.data });
-  else await db.deliveryZone.create({ data: parsed.data });
+  const zone = id
+    ? await db.deliveryZone.update({ where: { id }, data: parsed.data })
+    : await db.deliveryZone.create({ data: parsed.data });
   updateTag(ZONES_TAG);
+  await audit(g.admin, {
+    section: "delivery",
+    action: id ? "zone.update" : "zone.create",
+    entityId: zone.id,
+    summary: `${id ? "Изменил" : "Создал"} зону «${zone.name}»: доставка ${zone.fee / 100} ₽, минимум ${zone.minOrder / 100} ₽` + (zone.isActive ? "" : " (выключена)"),
+  });
   return ok("Зона сохранена");
 }
 
 export async function deleteZoneAction(id: string): Promise<ActionResult> {
   const g = await guardAction("delivery");
   if ("denied" in g) return g.denied;
-  await db.deliveryZone.delete({ where: { id } });
+  const zone = await db.deliveryZone.delete({ where: { id }, select: { name: true } });
   updateTag(ZONES_TAG);
+  await audit(g.admin, { section: "delivery", action: "zone.delete", entityId: id, summary: `Удалил зону «${zone.name}»` });
   return ok("Зона удалена");
 }

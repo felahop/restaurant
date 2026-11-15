@@ -254,6 +254,8 @@ model Order {
 
   customerName  String
   customerPhone String
+  /// Почта для электронного чека (онлайн-оплата с «Чеками от ЮKassa»).
+  customerEmail String?
   comment       String?
   cutlery       Int     @default(0)
 
@@ -286,6 +288,9 @@ model Order {
   paymentId       String?       @unique
   paidAt          DateTime?
 
+  /// Когда ресторан получил уведомление о заказе (Telegram). Предзаказ — за N минут до времени (Settings.preorderAlertMinutes).
+  notifiedAt   DateTime?
+
   cancelReason String?
   acceptedAt   DateTime?
   cookingAt    DateTime?
@@ -297,11 +302,12 @@ model Order {
 
   items             OrderItem[]
   bonusTransactions BonusTransaction[]
-  reviews           Review[]
+  review            Review?
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
 
   @@index([status, createdAt])
+  @@index([scheduledFor])
   @@index([createdAt])
   @@index([userId])
 }
@@ -460,7 +466,8 @@ model Review {
   text        String
   userId      String?
   user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
-  orderId     String?
+  /// Один отзыв на заказ.
+  orderId     String?   @unique
   order       Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
   isPublished Boolean   @default(false)
   publishedAt DateTime?
@@ -545,6 +552,8 @@ model Settings {
   scheduleStepMinutes  Int @default(15)
   scheduleLeadMinutes  Int @default(45)
   scheduleDaysAhead    Int @default(2)
+  /// За сколько минут до времени предзаказа ресторан получает сигнал и уведомление.
+  preorderAlertMinutes Int @default(120)
 
   updatedAt DateTime @updatedAt
 }
@@ -563,6 +572,7 @@ model AdminUser {
   isActive     Boolean        @default(true)
   lastLoginAt  DateTime?
   sessions     AdminSession[]
+  auditLogs    AdminAuditLog[]
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 }
@@ -576,6 +586,30 @@ model AdminSession {
   createdAt   DateTime  @default(now())
 
   @@index([adminUserId])
+}
+
+/// Журнал действий сотрудников: кто, когда и что сделал в админ-панели.
+model AdminAuditLog {
+  id          String     @id @default(cuid())
+  adminUserId String?
+  adminUser   AdminUser? @relation(fields: [adminUserId], references: [id], onDelete: SetNull)
+  /// Снимок имени и логина: запись остаётся понятной, даже если сотрудника удалят или переименуют.
+  adminName   String
+  adminLogin  String
+  /// Раздел: orders, menu, delivery, marketing, reservations, reviews, settings, staff, analytics, auth.
+  section     String
+  /// Код действия, например order.status, dish.update.
+  action      String
+  /// Человекочитаемое описание на русском.
+  summary     String
+  entityId    String?
+  meta        Json?
+  ip          String?
+  createdAt   DateTime   @default(now())
+
+  @@index([createdAt])
+  @@index([adminUserId, createdAt])
+  @@index([section, createdAt])
 }
 
 /// Счётчики для ограничения частоты (коды входа, формы). Работает при нескольких экземплярах приложения.

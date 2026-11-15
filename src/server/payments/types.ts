@@ -1,6 +1,11 @@
 /** Сменный модуль приёма онлайн-оплаты. Данные карт сайт не видит: гость вводит их на стороне сервиса. */
 
+import type { ReceiptLine } from "@/lib/payments/receipt";
+
 export type OnlineMethod = "CARD_ONLINE" | "SBP";
+
+/** Данные для электронного чека (54-ФЗ), если чеки формирует платёжный сервис. */
+export type ReceiptInput = { email: string | null; phone: string | null; lines: ReceiptLine[] };
 
 export type CreatePaymentInput = {
   orderId: string;
@@ -12,6 +17,8 @@ export type CreatePaymentInput = {
   description: string;
   /** Ключ идемпотентности: повтор запроса не создаст второй платёж. */
   idempotenceKey: string;
+  /** Чек: передаётся, только если включены чеки через сервис (YOOKASSA_RECEIPTS=true). */
+  receipt?: ReceiptInput;
 };
 
 export type CreatedPayment = { paymentId: string; confirmationUrl: string };

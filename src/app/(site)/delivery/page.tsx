@@ -3,10 +3,12 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import { Banknote, Clock, CreditCard, QrCode, Store, Truck } from "lucide-react";
 import { ZonesMap } from "@/components/delivery/ZonesMap";
+import { YandexMap } from "@/components/maps/YandexMap";
 import { ButtonLink } from "@/components/ui/Button";
 import { SectionHeading } from "@/components/ui/Typography";
 import { formatRub } from "@/lib/money";
 import { formatWeekHours } from "@/lib/order/schedule";
+import { yandexMapsConfig } from "@/server/maps/config";
 import { getSettings } from "@/server/settings";
 import { getZones } from "@/server/zones";
 
@@ -29,18 +31,30 @@ const payments = [
 
 async function DeliveryContent() {
   await connection();
-  const [settings, zones] = await Promise.all([getSettings(), getZones()]);
+  const [settings, zones, maps] = await Promise.all([getSettings(), getZones(), yandexMapsConfig()]);
   const active = zones.filter((z) => z.isActive);
   const orderHours = formatWeekHours(settings.orderHours);
+  const schema = (
+    <ZonesMap zones={zones} center={{ lat: settings.lat, lng: settings.lng }} label="Схема зон доставки вокруг ресторана" />
+  );
 
   return (
     <div className="flex flex-col gap-8 md:gap-12">
       <section aria-labelledby="zones-title" className="grid items-start gap-4 md:grid-cols-[6fr_5fr] md:gap-6">
-        <ZonesMap
-          zones={zones}
-          center={{ lat: settings.lat, lng: settings.lng }}
-          label="Схема зон доставки вокруг ресторана"
-        />
+        {maps ? (
+          <YandexMap
+            apiKey={maps.apiKey}
+            scriptUrl={maps.scriptUrl}
+            center={{ lat: settings.lat, lng: settings.lng }}
+            zones={active}
+            markerLabel={settings.name}
+            label="Зоны доставки на карте"
+            className="aspect-square md:aspect-4/3"
+            fallback={schema}
+          />
+        ) : (
+          schema
+        )}
         <div className="flex flex-col gap-3">
           <h2 id="zones-title" className="font-display text-h2 text-fg">
             Зоны и стоимость

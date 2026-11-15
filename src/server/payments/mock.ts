@@ -1,5 +1,6 @@
 import "server-only";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { receiptSum } from "@/lib/payments/receipt";
 import { db } from "@/server/db";
 import type {
   CreatePaymentInput,
@@ -31,6 +32,8 @@ export class MockPaymentProvider implements PaymentProvider {
   constructor(private readonly siteUrl: string) {}
 
   async createPayment(input: CreatePaymentInput): Promise<CreatedPayment> {
+    // Как и ЮKassa, заглушка не примет чек, сумма которого не совпадает с платежом.
+    if (input.receipt && receiptSum(input.receipt.lines) !== input.amount) throw new Error("Сумма чека не совпадает с платежом");
     const id = `mock_${randomBytes(12).toString("hex")}`;
     await db.mockPayment.create({
       data: { id, orderId: input.orderId, amount: input.amount, method: input.method, returnUrl: input.returnUrl },

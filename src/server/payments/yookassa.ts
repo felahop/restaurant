@@ -1,4 +1,5 @@
 import "server-only";
+import { receiptSum } from "@/lib/payments/receipt";
 import { clientIp } from "@/server/http";
 import { ipInAny } from "./ip";
 import {
@@ -8,6 +9,7 @@ import {
   type CreatedPayment,
   type PaymentProvider,
   type PaymentSnapshot,
+  type ReceiptInput,
   type VerifiedNotification,
 } from "./types";
 
@@ -17,7 +19,7 @@ import {
  *  - СБП: https://yookassa.ru/developers/payment-acceptance/integration-scenarios/manual-integration/other/sbp
  *  - уведомления и проверка подлинности: https://yookassa.ru/developers/using-api/webhooks
  *  - формат и идемпотентность: https://yookassa.ru/developers/using-api/interaction-format
- *  - спецификация OpenAPI (GET /payments/{payment_id}).
+ *  - спецификация OpenAPI (GET /payments/{payment_id}, объект receipt в POST /payments).
  * Ключи: YOOKASSA_SHOP_ID и YOOKASSA_SECRET_KEY. URL для уведомлений в личном кабинете:
  *   https://<ваш-домен>/api/payments/webhook/yookassa
  */
@@ -44,6 +46,52 @@ type ApiPayment = {
   metadata?: Record<string, string | null>;
 };
 
+/**
+ * Настройки чеков (54-ФЗ) для «Чеков от ЮKassa». Значения зависят от налогового режима ресторана —
+ * их выбирает бухгалтер по справочнику ЮKassa (parameters-values), сайт их не угадывает.
+ *   YOOKASSA_RECEIPTS=true — передавать чек с каждым платежом;
+ *   YOOKASSA_VAT_CODE — ставка НДС (vat_code, 1–12), обязательна;
+ *   YOOKASSA_TAX_SYSTEM_CODE — система налогообложения (tax_system_code, 1–6), если требует касса;
+ *   YOOKASSA_RECEIPT_PAYMENT_SUBJECT — признак предмета расчёта для блюд (по умолчанию commodity);
+ *   YOOKASSA_RECEIPT_PAYMENT_MODE — признак способа расчёта (по умолчанию full_prepayment: оплата до получения).
+ */
+export function receiptConfig() {
+  if (process.env.YOOKASSA_RECEIPTS !== "true") return null;
+  const vat = Number(process.env.YOOKASSA_VAT_CODE);
+  if (!Number.isInteger(vat) || vat < 1 || vat > 12) {
+    throw new Error("Включены чеки ЮKassa, но не задан YOOKASSA_VAT_CODE (1–12)");
+  }
+  const tax = Number(process.env.YOOKASSA_TAX_SYSTEM_CODE);
+  return {
+    vatCode: vat,
+    taxSystemCode: Number.isInteger(tax) && tax >= 1 && tax <= 6 ? tax : null,
+    paymentSubject: process.env.YOOKASSA_RECEIPT_PAYMENT_SUBJECT || "commodity",
+    paymentMode: process.env.YOOKASSA_RECEIPT_PAYMENT_MODE || "full_prepayment",
+  };
+}
+
+/** Объект receipt по схеме ReceiptData из спецификации ЮKassa. */
+export function receiptBody(amount: number, receipt: ReceiptInput, cfg: NonNullable<ReturnType<typeof receiptConfig>>) {
+  if (receiptSum(receipt.lines) !== amount) throw new Error("Сумма позиций чека не совпадает с суммой платежа");
+  const customer: Record<string, string> = {};
+  if (receipt.email) customer.email = receipt.email;
+  // Телефон — в формате E.164 без «+», как в примере документации (79000000000).
+  if (receipt.phone) customer.phone = receipt.phone.replace(/^\+/, "");
+  return {
+    customer,
+    items: receipt.lines.map((l) => ({
+      description: l.description,
+      quantity: l.quantity,
+      amount: { value: toMajorString(l.unitPrice), currency: "RUB" },
+      vat_code: cfg.vatCode,
+      payment_subject: l.kind === "delivery" ? "service" : cfg.paymentSubject,
+      payment_mode: cfg.paymentMode,
+      measure: "piece",
+    })),
+    ...(cfg.taxSystemCode ? { tax_system_code: cfg.taxSystemCode } : {}),
+  };
+}
+
 export class YooKassaProvider implements PaymentProvider {
   readonly name = "yookassa";
 
@@ -65,7 +113,7 @@ export class YooKassaProvider implements PaymentProvider {
       description: input.description.slice(0, 128),
       metadata: { orderId: input.orderId, orderNumber: String(input.orderNumber) },
       payment_method_data: { type: input.method === "SBP" ? "sbp" : "bank_card" },
-      // TODO(54-ФЗ): если чеки отправляет ЮKassa, добавить объект receipt (позиции, НДС, контакт покупателя).
+      ...(input.receipt ? { receipt: receiptBody(input.amount, input.receipt, receiptConfig()!) } : {}),
     };
     const res = await fetch(`${API}/payments`, {
       method: "POST",

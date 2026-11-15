@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { formatRub } from "@/lib/money";
+import { alertAt, isOrderDue } from "@/lib/order/preorder";
 import { paymentLabels } from "@/lib/order/schemas";
 import { nextStatus, statusLabel, type OrderStatusValue, type OrderTypeValue } from "@/lib/order/status";
 import { setOrderStatusAction } from "@/app/admin/(panel)/orders/actions";
@@ -28,10 +29,11 @@ type FeedOrder = {
   items: { name: string; quantity: number; modifiers: { name: string }[] }[];
 };
 
-type Filter = "active" | "awaiting" | "done" | "canceled" | "all";
+type Filter = "active" | "upcoming" | "awaiting" | "done" | "canceled" | "all";
 
 const FILTERS: { value: Filter; label: string }[] = [
   { value: "active", label: "В работе" },
+  { value: "upcoming", label: "Предзаказы" },
   { value: "awaiting", label: "Ждут оплату" },
   { value: "done", label: "Завершённые" },
   { value: "canceled", label: "Отменённые" },
@@ -67,7 +69,9 @@ export function OrdersFeed({ timeZone, initialDate }: { timeZone: string; initia
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
-  const known = useRef<Set<string> | null>(null);
+  const [alertMinutes, setAlertMinutes] = useState(120);
+  /** Заказы, о которых уже просигналили (или которые были в ленте при открытии). */
+  const alerted = useRef<Set<string> | null>(null);
   const audio = useRef<AudioContext | null>(null);
 
   const load = useCallback(async () => {
@@ -77,27 +81,29 @@ export function OrdersFeed({ timeZone, initialDate }: { timeZone: string; initia
         router.push("/admin/login");
         return;
       }
-      const data = (await res.json()) as { orders: FeedOrder[] };
+      const data = (await res.json()) as { orders: FeedOrder[]; alertMinutes: number };
       setOrders(data.orders);
+      setAlertMinutes(data.alertMinutes);
       setError(null);
-      // Новые принятые заказы: сигнал и подсветка.
-      const ids = new Set(data.orders.map((o) => o.id));
-      if (known.current) {
-        const added = data.orders.filter((o) => !known.current!.has(o.id) && o.status === "ACCEPTED").map((o) => o.id);
+      // Сигнал и подсветка: новый заказ «как можно скорее» — сразу, предзаказ — когда до него осталось alertMinutes.
+      const now = new Date();
+      const due = data.orders.filter((o) => o.status === "ACCEPTED" && isOrderDue(o, data.alertMinutes, now)).map((o) => o.id);
+      if (alerted.current) {
+        const added = due.filter((id) => !alerted.current!.has(id));
         if (added.length) {
           setFresh((prev) => new Set([...prev, ...added]));
           if (audio.current) beep(audio.current);
           window.setTimeout(() => setFresh((prev) => new Set([...prev].filter((id) => !added.includes(id)))), 15_000);
         }
       }
-      known.current = new Set([...(known.current ?? []), ...ids]);
+      alerted.current = new Set([...(alerted.current ?? []), ...due]);
     } catch {
       setError("Нет связи с сервером. Повторим через несколько секунд.");
     }
   }, [date, filter, router]);
 
   useEffect(() => {
-    known.current = null;
+    alerted.current = null;
     const first = window.setTimeout(load, 0);
     const id = window.setInterval(load, POLL_MS);
     return () => {
@@ -126,7 +132,10 @@ export function OrdersFeed({ timeZone, initialDate }: { timeZone: string; initia
       await load();
     });
 
-  const time = (iso: string) => new Intl.DateTimeFormat("ru-RU", { timeZone, hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
+  const time = (iso: string | Date) =>
+    new Intl.DateTimeFormat("ru-RU", { timeZone, hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
+  const dayTime = (iso: string) =>
+    new Intl.DateTimeFormat("ru-RU", { timeZone, day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
 
   return (
     <div className="flex flex-col gap-2">
@@ -136,8 +145,9 @@ export function OrdersFeed({ timeZone, initialDate }: { timeZone: string; initia
           <input
             type="date"
             value={date}
+            disabled={filter === "upcoming"}
             onChange={(e) => e.target.value && setDate(e.target.value)}
-            className="h-5.5 rounded-field border border-line-strong bg-surface px-1.5 text-base text-fg"
+            className="h-5.5 rounded-field border border-line-strong bg-surface px-1.5 text-base text-fg disabled:opacity-50"
           />
         </label>
         <div role="group" aria-label="Статус" className="scrollbar-none flex gap-0.5 overflow-x-auto">
@@ -168,7 +178,13 @@ export function OrdersFeed({ timeZone, initialDate }: { timeZone: string; initia
       </div>
 
       <p role="status" aria-live="polite" className="min-h-2.5 text-sm text-fg-muted">
-        {error ?? message ?? (orders ? `Заказов: ${orders.length}. Лента обновляется каждые 5 секунд.` : "Загружаем…")}
+        {error ??
+          message ??
+          (orders
+            ? filter === "upcoming"
+              ? `Предзаказов: ${orders.length} на все даты. Сигнал прозвучит за ${alertMinutes} мин до времени заказа.`
+              : `Заказов: ${orders.length}. Лента обновляется каждые 5 секунд.`
+            : "Загружаем…")}
       </p>
 
       {orders && orders.length === 0 ? (
@@ -181,6 +197,7 @@ export function OrdersFeed({ timeZone, initialDate }: { timeZone: string; initia
         {orders?.map((o) => {
           const next = nextStatus(o.status, o.type);
           const unpaid = o.status === "AWAITING_PAYMENT";
+          const waiting = o.scheduledFor && o.status === "ACCEPTED" && !isOrderDue(o, alertMinutes);
           return (
             <li
               key={o.id}
@@ -198,7 +215,12 @@ export function OrdersFeed({ timeZone, initialDate }: { timeZone: string; initia
                   <span className="text-xs text-fg-muted">принят в {time(o.createdAt)}</span>
                 </div>
                 <div className="flex flex-wrap justify-end gap-0.5">
-                  {fresh.has(o.id) ? <Badge tone="hit">Новый</Badge> : null}
+                  {o.scheduledFor && o.status === "ACCEPTED" && !waiting ? (
+                    <Badge tone="hit">Пора готовить</Badge>
+                  ) : fresh.has(o.id) ? (
+                    <Badge tone="hit">Новый</Badge>
+                  ) : null}
+                  {waiting ? <Badge tone="neutral">Предзаказ</Badge> : null}
                   <Badge tone={o.status === "COMPLETED" ? "success" : o.status === "CANCELED" ? "soldOut" : "neutral"}>
                     {statusLabel(o.status, o.type)}
                   </Badge>
@@ -211,8 +233,11 @@ export function OrdersFeed({ timeZone, initialDate }: { timeZone: string; initia
                 </span>
                 <span className="inline-flex items-center gap-0.5 font-semibold">
                   <Clock className="size-2" aria-hidden="true" />
-                  {o.scheduledFor ? `к ${time(o.scheduledFor)}` : "сразу"}
+                  {o.scheduledFor ? `к ${filter === "upcoming" ? dayTime(o.scheduledFor) : time(o.scheduledFor)}` : "сразу"}
                 </span>
+                {waiting && o.scheduledFor ? (
+                  <span className="text-fg-muted">сигнал в {time(alertAt(o.scheduledFor, alertMinutes))}</span>
+                ) : null}
               </p>
               <ul className="flex flex-col text-sm text-fg">
                 {o.items.map((i, idx) => (

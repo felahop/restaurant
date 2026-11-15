@@ -3,7 +3,7 @@ import type { PublicZone } from "@/server/zones";
 
 /**
  * Схема зон доставки в SVG: многоугольники из базы, проекция вокруг ресторана.
- * Работает без ключей карт. С ключом Яндекс Карт на этапе админки зоны рисуются на настоящей карте.
+ * Работает без ключей карт. С ключом YANDEX_MAPS_JS_API_KEY вместо схемы показывается Яндекс Карта (src/components/maps/YandexMap.tsx).
  */
 export function ZonesMap({
   zones,

@@ -152,13 +152,38 @@ test("новый заказ появляется в ленте без перез
   const second = await guestOrder(guest);
   const card = admin.getByRole("listitem").filter({ has: admin.getByRole("link", { name: `№${second.number}` }) });
   await expect(card).toBeVisible({ timeout: 15_000 });
-  await expect(card.getByText("Новый")).toBeVisible();
+  // «Как можно скорее» — «Новый»; ночью заказ уходит ко времени — «Предзаказ» (сигнал за 2 часа до времени).
+  await expect(card.getByText(/^(Новый|Предзаказ|Пора готовить)$/)).toBeVisible();
 
   // Статус в один тап — гость видит его без перезагрузки.
   await card.getByRole("button", { name: "Готовится →" }).click();
   await expect(card.getByText("Готовится", { exact: true })).toBeVisible();
   await expect(guest.getByRole("heading", { level: 1, name: "Готовится" })).toBeVisible({ timeout: 15_000 });
 
+  // Владелец видит в журнале, кто и что сделал.
+  const owner = await adminPage(browser);
+  await owner.goto("/admin/journal?section=orders");
+  const entry = owner.getByRole("listitem").filter({ hasText: `Заказ №${second.number}: Принят → Готовится` });
+  await expect(entry).toBeVisible();
+  await expect(entry).toContainText("Менеджер смены");
+
   await guestCtx.close();
   await admin.context().close();
+  await owner.context().close();
+});
+
+test("выгрузка CSV — только владельцу, без персональных данных", async ({ browser }) => {
+  const owner = await adminPage(browser);
+  const res = await owner.request.get("/api/admin/export/orders?period=week");
+  expect(res.status()).toBe(200);
+  expect(res.headers()["content-type"]).toContain("text/csv");
+  const body = await res.text();
+  expect(body.startsWith("\uFEFFНомер;Создан;Ко времени;Получение;Статус")).toBe(true);
+  expect(body).not.toContain("9991234567");
+  expect((await owner.request.get("/api/admin/export/dishes?period=month")).status()).toBe(200);
+
+  const manager = await adminPage(browser, MANAGER);
+  expect((await manager.request.get("/api/admin/export/orders?period=week")).status()).toBe(403);
+  await owner.context().close();
+  await manager.context().close();
 });

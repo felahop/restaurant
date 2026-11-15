@@ -1,9 +1,10 @@
-import { connection } from "next/server";
+import { after, connection } from "next/server";
 import { AdminAccessError, assertAdmin } from "@/server/admin/auth";
 import { listOrders, type FeedFilter } from "@/server/admin/orders";
 import { jsonError } from "@/server/http";
+import { sendDuePreorderReminders } from "@/server/order-notify";
 
-const FILTERS: FeedFilter[] = ["active", "awaiting", "done", "canceled", "all"];
+const FILTERS: FeedFilter[] = ["active", "upcoming", "awaiting", "done", "canceled", "all"];
 
 /** Лента заказов для админки (опрашивается каждые 5 секунд). */
 export async function GET(request: Request) {
@@ -18,5 +19,7 @@ export async function GET(request: Request) {
   const filterParam = url.searchParams.get("filter") as FeedFilter | null;
   const filter = filterParam && FILTERS.includes(filterParam) ? filterParam : "active";
   const data = await listOrders({ date: url.searchParams.get("date"), filter });
+  // Пока лента открыта, напоминания о предзаказах уходят и без cron.
+  after(() => sendDuePreorderReminders().catch((e) => console.error("[notify] напоминания", e)));
   return Response.json(data, { headers: { "Cache-Control": "no-store" } });
 }
