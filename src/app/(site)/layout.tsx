@@ -20,7 +20,9 @@ export default function SiteLayout({ children, sheet }: { children: React.ReactN
       <main id="main">{children}</main>
       {sheet}
       <Footer />
-      <SiteMobileCartBar />
+      <Suspense fallback={null}>
+        <SiteMobileCartBar />
+      </Suspense>
       <CartAnnouncer />
     </>
   );

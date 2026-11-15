@@ -6,7 +6,8 @@ import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { restaurant } from "../src/config/restaurant";
-import { categories, dishes, modifierGroups } from "./seed-data/menu";
+import { circlePolygon } from "../src/lib/geo/polygon";
+import { categories, dishes, modifierGroups, rub } from "./seed-data/menu";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) throw new Error("DATABASE_URL не задан");
@@ -124,11 +125,83 @@ async function seedMenu() {
   }
 }
 
+/** Три демо-зоны вокруг ресторана. Порядок важен: при пересечении действует зона с меньшим sortOrder. */
+async function seedZones() {
+  const center = { lat: restaurant.address.lat, lng: restaurant.address.lng };
+  const zones = [
+    {
+      id: "zone-center",
+      name: "Центр",
+      color: "#e0a43a",
+      radiusKm: 2.2,
+      wobble: [0, 0.08, -0.05, 0.1, 0.02, -0.08, 0.05, 0.12],
+      fee: rub(150),
+      minOrder: rub(900),
+      freeFrom: rub(2500),
+      etaMinutes: 40,
+    },
+    {
+      id: "zone-ring",
+      name: "Внутри ТТК",
+      color: "#7a9a5b",
+      radiusKm: 4.6,
+      wobble: [0.05, -0.04, 0.1, 0, -0.06, 0.08, -0.02, 0.04],
+      fee: rub(250),
+      minOrder: rub(1200),
+      freeFrom: rub(3500),
+      etaMinutes: 55,
+    },
+    {
+      id: "zone-far",
+      name: "Дальняя зона",
+      color: "#a39b90",
+      radiusKm: 8.5,
+      wobble: [0.1, 0.05, 0.05, 0, -0.05, 0.05, 0.1, 0.12],
+      fee: rub(390),
+      minOrder: rub(1500),
+      freeFrom: null,
+      etaMinutes: 75,
+    },
+  ];
+  for (const [i, z] of zones.entries()) {
+    const data = {
+      name: z.name,
+      color: z.color,
+      polygon: circlePolygon(center, z.radiusKm, 16, z.wobble),
+      fee: z.fee,
+      minOrder: z.minOrder,
+      freeFrom: z.freeFrom,
+      etaMinutes: z.etaMinutes,
+      sortOrder: i * 10,
+    };
+    // Зоны, изменённые в админке, не перезаписываем.
+    await prisma.deliveryZone.upsert({ where: { id: z.id }, create: { id: z.id, ...data }, update: {} });
+  }
+}
+
+async function seedPromos() {
+  const promos = [
+    { code: "ОГОНЬ10", type: "PERCENT" as const, value: 10, minOrder: null },
+    { code: "WELCOME300", type: "FIXED" as const, value: rub(300), minOrder: rub(1500), usageLimit: 100 },
+  ];
+  for (const p of promos) {
+    await prisma.promoCode.upsert({ where: { code: p.code }, create: p, update: {} });
+  }
+}
+
 async function main() {
   await seedSettings();
   await seedMenu();
-  const [c, d, g] = await Promise.all([prisma.category.count(), prisma.dish.count(), prisma.modifierGroup.count()]);
-  console.log(`Готово: категорий ${c}, блюд ${d}, групп добавок ${g}.`);
+  await seedZones();
+  await seedPromos();
+  const [c, d, g, z, p] = await Promise.all([
+    prisma.category.count(),
+    prisma.dish.count(),
+    prisma.modifierGroup.count(),
+    prisma.deliveryZone.count(),
+    prisma.promoCode.count(),
+  ]);
+  console.log(`Готово: категорий ${c}, блюд ${d}, групп добавок ${g}, зон ${z}, промокодов ${p}.`);
 }
 
 main()

@@ -18,8 +18,10 @@ export function SiteHeaderFallback() {
   return <Header cartCount={count} cartTotal={subtotal} />;
 }
 
-/** Полоса корзины внизу экрана на телефоне. */
+/** Полоса корзины внизу экрана на телефоне. На экране оформления и заказа не нужна. */
 export function SiteMobileCartBar() {
   const { count, subtotal } = useCart();
+  const pathname = usePathname();
+  if (pathname === "/checkout" || pathname.startsWith("/order/")) return null;
   return <MobileCartBar count={count} total={subtotal} />;
 }

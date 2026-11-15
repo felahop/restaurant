@@ -36,6 +36,7 @@ export default defineConfig({
     ? undefined
     : {
         command: `npm run start -- -p ${PORT}`,
+        env: { RATE_LIMIT_SCALE: "50" },
         url: baseURL,
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,

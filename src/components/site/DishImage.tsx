@@ -9,10 +9,12 @@ type DishImageProps = {
   priority?: boolean;
   className?: string;
   dimmed?: boolean;
+  /** Миниатюра (корзина): без подписи, только иероглиф. */
+  compact?: boolean;
 };
 
 /** Фото блюда 4:3 или заглушка в палитре сайта с названием блюда. */
-export function DishImage({ name, imageUrl, kanji, sizes, priority, className, dimmed }: DishImageProps) {
+export function DishImage({ name, imageUrl, kanji, sizes, priority, className, dimmed, compact }: DishImageProps) {
   return (
     <div className={cn("relative aspect-4/3 overflow-hidden bg-coal", className)}>
       {imageUrl ? (
@@ -77,15 +79,20 @@ export function DishImage({ name, imageUrl, kanji, sizes, priority, className, d
               strokeLinecap="round"
             />
           </svg>
-          <span aria-hidden="true" className="relative font-kanji text-h1 text-paper opacity-20">
-            {kanji ?? "食"}
-          </span>
           <span
             aria-hidden="true"
-            className="relative line-clamp-2 max-w-[80%] text-center text-xs font-medium tracking-eyebrow text-sesame uppercase"
+            className={cn("relative font-kanji text-paper opacity-20", compact ? "text-h3" : "text-h1")}
           >
-            {name}
+            {kanji ?? "食"}
           </span>
+          {compact ? null : (
+            <span
+              aria-hidden="true"
+              className="relative line-clamp-2 max-w-[80%] text-center text-xs font-medium tracking-eyebrow text-sesame uppercase"
+            >
+              {name}
+            </span>
+          )}
         </div>
       )}
     </div>
