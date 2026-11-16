@@ -58,14 +58,18 @@ export function InfoStrip({ info }: { info: SiteInfo | null }) {
   ];
   return (
     <section aria-label="Адрес, часы работы и телефон" className="border-y border-line">
-      <dl aria-busy={info ? undefined : true} className="mx-auto grid max-w-site gap-2 px-2 py-3 md:grid-cols-3 md:gap-3 md:px-3 md:py-4">
+      <dl
+        aria-busy={info ? undefined : true}
+        className="mx-auto grid max-w-site gap-2 px-2 py-3 md:grid-cols-3 md:gap-3 md:px-3 md:py-4"
+      >
         {items.map(({ key, Icon, label, body }) => (
-          <div key={key} className="flex items-start gap-1.5">
-            <Icon className="mt-0.5 size-2.5 shrink-0 text-ginger" aria-hidden="true" />
-            <div className="flex flex-col gap-0.5">
-              <dt className="text-xs font-semibold tracking-eyebrow text-eyebrow uppercase">{label}</dt>
-              <dd>{body}</dd>
-            </div>
+          // dl > div > (dt, dd): иконка стоит в dt, чтобы структура списка была правильной для скринридеров.
+          <div key={key} className="grid grid-cols-[auto_1fr] items-start gap-x-1.5 gap-y-0.5">
+            <dt className="col-span-2 flex items-center gap-1.5 text-xs font-semibold tracking-eyebrow text-eyebrow uppercase">
+              <Icon className="size-2.5 shrink-0 text-ginger" aria-hidden="true" />
+              {label}
+            </dt>
+            <dd className="col-start-2">{body}</dd>
           </div>
         ))}
       </dl>

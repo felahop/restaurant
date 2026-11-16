@@ -1,0 +1,19 @@
+# Обратный прокси с автоматическим HTTPS (Let's Encrypt). Домен — из переменной DOMAIN.
+# Caddy по умолчанию заменяет X-Forwarded-For реальным IP клиента — на это опираются лимиты и проверка IP ЮKassa.
+{$DOMAIN} {
+	encode zstd gzip
+
+	# Загрузки (фото блюд) и статика Next.js кэшируются браузером надолго: у файлов уникальные имена.
+	@immutable path /_next/static/* /uploads/*
+	header @immutable Cache-Control "public, max-age=31536000, immutable"
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "SAMEORIGIN"
+		-Server
+	}
+
+	reverse_proxy app:3000
+}

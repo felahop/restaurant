@@ -19,6 +19,8 @@ export const metadata: Metadata = {
     locale: "ru_RU",
     siteName: restaurant.name,
   },
+  twitter: { card: "summary_large_image" },
+  formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {

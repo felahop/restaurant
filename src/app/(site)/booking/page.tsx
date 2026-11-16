@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { BookingForm } from "@/components/booking/BookingForm";
@@ -8,12 +7,13 @@ import { formatWeekHours } from "@/lib/order/schedule";
 import { getUser } from "@/server/auth/user";
 import { bookingCapacity } from "@/server/booking";
 import { getSettings } from "@/server/settings";
+import { pageMetadata } from "@/lib/seo/meta";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: "Бронь столика",
   description: "Забронируйте стол онлайн: выберите день, время и число гостей — перезвоним и подтвердим.",
-  alternates: { canonical: "/booking" },
-};
+  path: "/booking",
+});
 
 async function BookingContent() {
   await connection(); // свободное время зависит от текущего момента

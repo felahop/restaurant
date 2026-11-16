@@ -10,17 +10,15 @@ import { PromoBanners } from "@/components/home/PromoBanners";
 import { SitePromotions } from "@/components/home/PromotionsSection";
 import { SiteReviews } from "@/components/home/ReviewsSection";
 import { StorySection } from "@/components/home/StorySection";
+import { RestaurantJsonLd } from "@/components/seo/JsonLd";
 import { restaurant } from "@/config/restaurant";
+import { pageMetadata } from "@/lib/seo/meta";
 import { gallery, hero } from "@/data/home";
 import { getHits } from "@/server/menu";
 
 export const metadata: Metadata = {
+  ...pageMetadata({ title: hero.title, description: hero.lead, path: "/" }),
   title: { absolute: `${restaurant.name} — ${restaurant.tagline.toLowerCase()}, ${restaurant.city}` },
-  description: hero.lead,
-  openGraph: {
-    title: `${restaurant.name} — ${hero.title.toLowerCase()}`,
-    description: hero.lead,
-  },
 };
 
 /** Хиты из базы: блюда с меткой «Хит», которую ставят в админ-панели. */
@@ -57,6 +55,9 @@ export default function HomePage() {
       </Suspense>
       <Suspense fallback={<FindUsSection info={null} />}>
         <SiteFindUsSection />
+      </Suspense>
+      <Suspense fallback={null}>
+        <RestaurantJsonLd />
       </Suspense>
     </>
   );

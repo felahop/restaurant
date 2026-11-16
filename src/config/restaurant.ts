@@ -21,6 +21,10 @@ export const restaurant = {
   inn: "0000000000", // TODO
 
   city: "Москва", // TODO
+  /** Код страны для разметки schema.org (RU, KZ…). */
+  country: "RU", // TODO при смене страны
+  /** Кухни для разметки schema.org (servesCuisine). */
+  cuisines: ["Паназиатская", "Японская", "Китайская", "Рамен", "Вок"], // TODO
   address: {
     full: "Москва, Чистопрудный бульвар, 99", // TODO: адрес вымышленный
     short: "Чистопрудный бульвар, 99", // TODO

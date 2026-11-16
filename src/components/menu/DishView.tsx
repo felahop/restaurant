@@ -154,6 +154,8 @@ export function DishView({ dish, pairings, variant, titleId }: DishViewProps) {
   };
 
   const Title = variant === "page" ? "h1" : "h2";
+  /** Разделы — на уровень ниже заголовка блюда (на странице h2, в шторке h3). */
+  const Section = variant === "page" ? "h2" : "h3";
   const nutrition = [
     ["Ккал", dish.kcal == null ? "—" : String(dish.kcal)],
     ["Белки", formatNutrient(dish.proteins, "г")],
@@ -263,16 +265,16 @@ export function DishView({ dish, pairings, variant, titleId }: DishViewProps) {
         ) : null}
 
         <section aria-labelledby={`${dish.id}-composition`} className="flex flex-col gap-1">
-          <h3 id={`${dish.id}-composition`} className="text-title font-semibold text-fg">
+          <Section id={`${dish.id}-composition`} className="text-title font-semibold text-fg">
             Состав
-          </h3>
+          </Section>
           <p className="text-base text-fg-muted">{dish.composition}</p>
         </section>
 
         <section aria-labelledby={`${dish.id}-nutrition`} className="flex flex-col gap-1">
-          <h3 id={`${dish.id}-nutrition`} className="text-title font-semibold text-fg">
+          <Section id={`${dish.id}-nutrition`} className="text-title font-semibold text-fg">
             Пищевая ценность на порцию
-          </h3>
+          </Section>
           <dl className="grid grid-cols-4 gap-1 rounded-card border border-line p-1.5 text-center">
             {nutrition.map(([label, value]) => (
               <div key={label} className="flex flex-col">
@@ -284,9 +286,9 @@ export function DishView({ dish, pairings, variant, titleId }: DishViewProps) {
         </section>
 
         <section aria-labelledby={`${dish.id}-allergens`} className="flex flex-col gap-1">
-          <h3 id={`${dish.id}-allergens`} className="text-title font-semibold text-fg">
+          <Section id={`${dish.id}-allergens`} className="text-title font-semibold text-fg">
             Аллергены
-          </h3>
+          </Section>
           {dish.allergens.length ? (
             <ul className="flex flex-wrap gap-1">
               {dish.allergens.map((a) => (
@@ -306,9 +308,9 @@ export function DishView({ dish, pairings, variant, titleId }: DishViewProps) {
 
         {pairings.length ? (
           <section aria-labelledby={`${dish.id}-pairings`} className="flex flex-col gap-2 pb-3">
-            <h3 id={`${dish.id}-pairings`} className="text-title font-semibold text-fg">
+            <Section id={`${dish.id}-pairings`} className="text-title font-semibold text-fg">
               С этим берут
-            </h3>
+            </Section>
             <ul className="scrollbar-none -mx-2 flex snap-x snap-mandatory scroll-px-2 gap-2 overflow-x-auto px-2 md:-mx-3 md:scroll-px-3 md:px-3">
               {pairings.map((p) => (
                 <li key={p.id} className="flex w-[70%] shrink-0 snap-start sm:w-[45%]">

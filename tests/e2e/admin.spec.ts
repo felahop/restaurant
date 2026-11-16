@@ -91,7 +91,10 @@ test.describe("вход и роли", () => {
 
   test("владелец видит аналитику", async ({ page }) => {
     await login(page, OWNER);
-    await page.getByRole("navigation", { name: "Разделы админ-панели" }).getByRole("link", { name: "Аналитика" }).click();
+    await page
+      .getByRole("navigation", { name: "Разделы админ-панели" })
+      .getByRole("link", { name: "Аналитика" })
+      .click();
     await expect(page.getByRole("heading", { level: 1, name: "Аналитика" })).toBeVisible();
     await expect(page.getByText("Средний чек")).toBeVisible();
     await page.getByRole("link", { name: "7 дней" }).click();
@@ -127,7 +130,7 @@ test("блюдо из админки появляется в меню, стоп-
 
   // 4. В меню блюдо помечено, в корзине — заказ не пройдёт.
   await page.goto("/menu");
-  await expect(page.getByRole("button", { name: `${name} закончилось` })).toBeDisabled();
+  await expect(page.getByRole("button", { name: `Нет в наличии — ${name}` })).toBeDisabled();
   await page.goto("/checkout");
   await expect(page.getByText(`«${name}» закончилось — уберите его из заказа`)).toBeVisible();
 

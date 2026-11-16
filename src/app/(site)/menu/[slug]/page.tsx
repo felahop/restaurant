@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { DishLoader, DishSkeleton } from "@/components/menu/DishLoader";
-import { restaurant } from "@/config/restaurant";
+import { pageMetadata } from "@/lib/seo/meta";
 import { formatRub } from "@/lib/money";
 import { getDishBySlug } from "@/server/menu";
 
@@ -12,16 +12,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const dish = await getDishBySlug(slug);
   if (!dish) return { title: "Блюдо не найдено" };
   const description = `${dish.description} ${dish.portion}, ${formatRub(dish.price)}. Доставка и самовывоз.`;
-  return {
-    title: dish.name,
-    description,
-    alternates: { canonical: `/menu/${dish.slug}` },
-    openGraph: {
-      title: `${dish.name} — ${restaurant.name}`,
-      description,
-      images: dish.imageUrl ? [dish.imageUrl] : undefined,
-    },
-  };
+  return pageMetadata({ title: dish.name, description, path: `/menu/${dish.slug}`, image: dish.imageUrl });
 }
 
 export default function DishPage({ params }: Props) {

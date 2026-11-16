@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Сборка для сервера (Dockerfile задаёт BUILD_STANDALONE=1): .next/standalone с минимальным набором файлов.
+  // Локально остаётся обычная сборка, чтобы работал `npm start`.
+  output: process.env.BUILD_STANDALONE === "1" ? "standalone" : undefined,
   cacheComponents: true,
   partialPrefetching: true,
   poweredByHeader: false,

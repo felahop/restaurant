@@ -9,7 +9,15 @@ import { join, relative } from "node:path";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 const SRC = join(ROOT, "src");
-const ALLOWED_FILES = new Set(["src/app/globals.css", "src/design/tokens.ts", "src/design/contrast.ts"]);
+const ALLOWED_FILES = new Set([
+  "src/app/globals.css",
+  "src/design/tokens.ts",
+  "src/design/contrast.ts",
+  // Картинки next/og (Open Graph, иконка): движок понимает только inline-стили; цвета берутся из palette (tokens.ts).
+  "src/app/opengraph-image.tsx",
+  "src/app/apple-icon.tsx",
+  "src/server/brand-image.tsx",
+]);
 const EXTENSIONS = /\.(tsx?|css|mjs)$/;
 
 const utility =

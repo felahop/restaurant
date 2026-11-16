@@ -1,28 +1,30 @@
-import type { Metadata } from "next";
 import { Suspense } from "react";
 import { CalendarDays, Car, Clock, ExternalLink, Mail, MapPin, Navigation, Phone } from "lucide-react";
 import { ContactForm } from "@/components/contacts/ContactForm";
+import { RestaurantJsonLd } from "@/components/seo/JsonLd";
 import { MapPreview } from "@/components/home/MapPreview";
 import { MessengerLinks } from "@/components/site/MessengerLinks";
 import { ButtonLink, buttonStyles } from "@/components/ui/Button";
 import { Eyebrow } from "@/components/ui/Typography";
 import { yandexMapsPointUrl, yandexMapsRouteUrl } from "@/lib/maps/links";
 import { getSiteInfo } from "@/server/site-info";
+import { pageMetadata } from "@/lib/seo/meta";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: "Контакты",
   description: "Адрес, часы работы, телефон и мессенджеры. Напишите нам — ответим в течение дня.",
-  alternates: { canonical: "/contacts" },
-};
+  path: "/contacts",
+});
 
+/** Строка списка: dl > div > (dt с иконкой и скрытой подписью, dd со значениями). */
 function Row({ Icon, label, children }: { Icon: typeof MapPin; label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-1.5">
-      <Icon className="mt-0.5 size-2.5 shrink-0 text-ginger" aria-hidden="true" />
-      <div className="flex flex-col">
-        <dt className="sr-only">{label}</dt>
-        {children}
-      </div>
+    <div className="grid grid-cols-[auto_1fr] items-start gap-x-1.5 [&>dd]:col-start-2">
+      <dt className="row-span-3 pt-0.5">
+        <Icon className="size-2.5 text-ginger" aria-hidden="true" />
+        <span className="sr-only">{label}</span>
+      </dt>
+      {children}
     </div>
   );
 }
@@ -46,7 +48,10 @@ async function ContactsInfo() {
           </Row>
           <Row Icon={Phone} label="Телефон">
             <dd>
-              <a href={`tel:${info.phoneE164}`} className="text-lead font-semibold text-fg tabular-nums hover:text-ginger">
+              <a
+                href={`tel:${info.phoneE164}`}
+                className="text-lead font-semibold text-fg tabular-nums hover:text-ginger"
+              >
                 {info.phoneDisplay}
               </a>
             </dd>
@@ -70,7 +75,12 @@ async function ContactsInfo() {
           <ButtonLink href="/booking" size="lg" icon={<CalendarDays className="size-2.5" aria-hidden="true" />}>
             Забронировать стол
           </ButtonLink>
-          <a href={yandexMapsRouteUrl(info.lat, info.lng)} target="_blank" rel="noopener noreferrer" className={buttonStyles({ variant: "secondary", size: "lg" })}>
+          <a
+            href={yandexMapsRouteUrl(info.lat, info.lng)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={buttonStyles({ variant: "secondary", size: "lg" })}
+          >
             <Navigation className="size-2.5" aria-hidden="true" />
             Построить маршрут
             <span className="sr-only"> (Яндекс Карты, откроется в новой вкладке)</span>
@@ -102,6 +112,7 @@ export default function ContactsPage() {
       </header>
       <Suspense fallback={<div className="h-60 animate-pulse rounded-card bg-surface" aria-busy="true" />}>
         <ContactsInfo />
+        <RestaurantJsonLd />
       </Suspense>
       <div className="max-w-prose">
         <ContactForm />

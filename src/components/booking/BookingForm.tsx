@@ -40,14 +40,20 @@ export function BookingForm({ days, maxGuests, phoneDisplay, phoneE164, defaults
 
   if (done) {
     return (
-      <div role="status" className="flex flex-col items-start gap-2 rounded-card border border-line bg-surface p-3 md:p-4">
+      <div
+        role="status"
+        className="flex flex-col items-start gap-2 rounded-card border border-line bg-surface p-3 md:p-4"
+      >
         <CalendarCheck className="size-4 text-success" aria-hidden="true" />
         <h2 className="font-display text-h3 text-fg">Бронь принята</h2>
         <p className="text-lead text-fg">
           {done}, {guests} {plural(guests, GUESTS)}.
         </p>
         <p className="text-base text-fg-muted">Перезвоним, чтобы подтвердить. Если планы изменятся — позвоните нам.</p>
-        <a href={`tel:${phoneE164}`} className="text-lead font-semibold text-fg tabular-nums underline-offset-4 hover:underline">
+        <a
+          href={`tel:${phoneE164}`}
+          className="text-lead font-semibold text-fg tabular-nums underline-offset-4 hover:underline"
+        >
           {phoneDisplay}
         </a>
       </div>
@@ -55,7 +61,9 @@ export function BookingForm({ days, maxGuests, phoneDisplay, phoneE164, defaults
   }
 
   if (!days.length) {
-    return <p className="text-base text-fg-muted">Ближайшие две недели свободных дат нет — позвоните нам: {phoneDisplay}.</p>;
+    return (
+      <p className="text-base text-fg-muted">Ближайшие две недели свободных дат нет — позвоните нам: {phoneDisplay}.</p>
+    );
   }
 
   const submit = async () => {
@@ -101,13 +109,16 @@ export function BookingForm({ days, maxGuests, phoneDisplay, phoneE164, defaults
         <h2 className="text-h3 font-semibold text-fg" aria-hidden="true">
           Когда
         </h2>
-        <div role="group" aria-label="День" className="scrollbar-none -mx-2 flex gap-1 overflow-x-auto px-2 md:mx-0 md:flex-wrap md:px-0">
+        <div
+          role="group"
+          aria-label="День"
+          className="scrollbar-none -mx-2 flex gap-1 overflow-x-auto px-2 md:mx-0 md:flex-wrap md:px-0"
+        >
           {days.map((d) => (
             <button
               key={d.date}
               type="button"
               aria-pressed={d.date === date}
-              aria-label={d.label}
               onClick={() => {
                 setDate(d.date);
                 setTime(null);
@@ -122,7 +133,12 @@ export function BookingForm({ days, maxGuests, phoneDisplay, phoneE164, defaults
             </button>
           ))}
         </div>
-        <div role="group" aria-label="Время" aria-describedby={errors.time ? "time-error" : undefined} className="grid grid-cols-4 gap-1 sm:grid-cols-6 md:grid-cols-8">
+        <div
+          role="group"
+          aria-label="Время"
+          aria-describedby={errors.time ? "time-error" : undefined}
+          className="grid grid-cols-4 gap-1 sm:grid-cols-6 md:grid-cols-8"
+        >
           {day?.times.map((t) => (
             <button
               key={t.value}
@@ -130,7 +146,11 @@ export function BookingForm({ days, maxGuests, phoneDisplay, phoneE164, defaults
               aria-pressed={time === t.value}
               disabled={t.seatsLeft < guests}
               title={t.seatsLeft < guests ? (t.seatsLeft ? `Свободно мест: ${t.seatsLeft}` : "Зал занят") : undefined}
-              aria-label={t.seatsLeft < guests ? `${t.time} — ${t.seatsLeft ? `свободно мест: ${t.seatsLeft}` : "занято"}` : undefined}
+              aria-label={
+                t.seatsLeft < guests
+                  ? `${t.time} — ${t.seatsLeft ? `свободно мест: ${t.seatsLeft}` : "занято"}`
+                  : undefined
+              }
               onClick={() => {
                 setTime(t.value);
                 setErrors((e) => ({ ...e, time: "" }));
@@ -182,8 +202,22 @@ export function BookingForm({ days, maxGuests, phoneDisplay, phoneE164, defaults
           Кто придёт
         </h2>
         <div className="grid gap-2 sm:grid-cols-2">
-          <TextField id="b-name" label="Имя" autoComplete="given-name" maxLength={60} value={name} error={errors.name} onChange={(e) => setName(e.target.value)} />
-          <PhoneField id="b-phone" defaultValue={phone} error={errors.phone} hint="Позвоним, чтобы подтвердить бронь" onValueChange={setPhone} />
+          <TextField
+            id="b-name"
+            label="Имя"
+            autoComplete="given-name"
+            maxLength={60}
+            value={name}
+            error={errors.name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <PhoneField
+            id="b-phone"
+            defaultValue={phone}
+            error={errors.phone}
+            hint="Позвоним, чтобы подтвердить бронь"
+            onValueChange={setPhone}
+          />
         </div>
         <TextareaField
           id="b-comment"
@@ -219,7 +253,9 @@ export function BookingForm({ days, maxGuests, phoneDisplay, phoneE164, defaults
           </p>
         ) : null}
         <Button type="submit" size="lg" loading={busy} className="sm:self-start">
-          {time && day ? `Забронировать · ${day.short.toLowerCase()}, ${day.times.find((t) => t.value === time)?.time}` : "Забронировать стол"}
+          {time && day
+            ? `Забронировать · ${day.short.toLowerCase()}, ${day.times.find((t) => t.value === time)?.time}`
+            : "Забронировать стол"}
         </Button>
       </fieldset>
     </form>

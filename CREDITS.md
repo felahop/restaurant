@@ -2,10 +2,10 @@
 
 ## Шрифты
 
-| Шрифт | Где используется | Лицензия |
-|---|---|---|
-| Dela Gothic One | крупные заголовки | SIL Open Font License 1.1 |
-| Golos Text | текст и интерфейс | SIL Open Font License 1.1 |
+| Шрифт                            | Где используется                          | Лицензия                  |
+| -------------------------------- | ----------------------------------------- | ------------------------- |
+| Dela Gothic One                  | крупные заголовки                         | SIL Open Font License 1.1 |
+| Golos Text                       | текст и интерфейс                         | SIL Open Font License 1.1 |
 | Noto Serif JP (подмножество 600) | декоративные иероглифы и знак 炭 в печати | SIL Open Font License 1.1 |
 
 Dela Gothic One и Golos Text подключаются через `next/font/google`: файлы скачиваются при сборке и раздаются с нашего домена.
@@ -18,6 +18,10 @@ https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@600&text=<все н�
 ```
 
 Иероглиф 炭 в печати-ханко (`src/components/brand/Hanko.tsx`) — контур глифа Noto Serif JP 600.
+
+Для картинки Open Graph и иконки (`next/og` не читает woff2) в `src/assets/og-fonts/` лежат файлы woff Dela Gothic One
+(кириллица, латиница) и Golos Text 400/600 из пакетов `@fontsource/dela-gothic-one@5.3.0` и `@fontsource/golos-text@5.3.0`
+(SIL Open Font License 1.1).
 
 ## Иконки
 

@@ -23,16 +23,16 @@ test.describe("каркас и дизайн-система", () => {
     await page.goto("/styleguide#dish");
     const section = page.locator("#dish");
     const cart = section.getByRole("link", { name: /^Корзина/ });
-    await expect(cart).toHaveAttribute("aria-label", /2 блюда/);
+    await expect(cart).toHaveAccessibleName(/2 блюда/);
     await section.getByRole("button", { name: "Добавить в корзину: Тонкоцу рамен" }).click();
-    await expect(cart).toHaveAttribute("aria-label", /3 блюда/);
+    await expect(cart).toHaveAccessibleName(/3 блюда/);
     await section.getByRole("button", { name: "Добавить ещё порцию: Тонкоцу рамен", exact: true }).click();
-    await expect(cart).toHaveAttribute("aria-label", /4 блюда/);
+    await expect(cart).toHaveAccessibleName(/4 блюда/);
   });
 
   test("закончившееся блюдо нельзя добавить", async ({ page }) => {
     await page.goto("/styleguide#dish");
-    await expect(page.getByRole("button", { name: "Ролл с угрём закончилось" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Нет в наличии — Ролл с угрём" })).toBeDisabled();
   });
 
   test("мобильное меню открывается и закрывается по Escape", async ({ page, isMobile }) => {

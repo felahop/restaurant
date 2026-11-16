@@ -5,6 +5,9 @@ import { yandexMapsPointUrl, yandexMapsRouteUrl } from "@/lib/maps/links";
 import { getSiteInfo, type SiteInfo } from "@/server/site-info";
 import { MapPreview } from "./MapPreview";
 
+const ROW = "grid grid-cols-[auto_1fr] items-start gap-x-1.5 [&>dd]:col-start-2";
+const TERM = "row-span-3 pt-0.5";
+
 export async function SiteFindUsSection() {
   return <FindUsSection info={await getSiteInfo()} />;
 }
@@ -30,47 +33,48 @@ export function FindUsSection({ info }: { info: SiteInfo | null }) {
         <div className="flex flex-col gap-3">
           <SectionHeading id="find-title" eyebrow="Как нас найти" title="Ждём в зале у огня" />
           <dl className="flex flex-col gap-2">
-            <div className="flex items-start gap-1.5">
-              <MapPin className="mt-0.5 size-2.5 shrink-0 text-ginger" aria-hidden="true" />
-              <div>
-                <dt className="sr-only">Адрес</dt>
-                <dd className="text-lead text-fg">{info.addressFull}</dd>
-                {info.metro ? <dd className="text-sm text-fg-muted">м. {info.metro}</dd> : null}
-              </div>
+            {/* dl > div > (dt, dd): иконка — в dt вместе со скрытой подписью, значения — в dd. */}
+            <div className={ROW}>
+              <dt className={TERM}>
+                <MapPin className="size-2.5 text-ginger" aria-hidden="true" />
+                <span className="sr-only">Адрес</span>
+              </dt>
+              <dd className="text-lead text-fg">{info.addressFull}</dd>
+              {info.metro ? <dd className="text-sm text-fg-muted">м. {info.metro}</dd> : null}
             </div>
-            <div className="flex items-start gap-1.5">
-              <Clock className="mt-0.5 size-2.5 shrink-0 text-ginger" aria-hidden="true" />
-              <div>
-                <dt className="sr-only">Часы работы</dt>
-                <dd className="flex flex-col text-base text-fg">
-                  {info.hoursLines.map((line) => (
-                    <span key={line}>{line}</span>
-                  ))}
-                </dd>
-              </div>
+            <div className={ROW}>
+              <dt className={TERM}>
+                <Clock className="size-2.5 text-ginger" aria-hidden="true" />
+                <span className="sr-only">Часы работы</span>
+              </dt>
+              <dd className="flex flex-col text-base text-fg">
+                {info.hoursLines.map((line) => (
+                  <span key={line}>{line}</span>
+                ))}
+              </dd>
             </div>
             {info.parking ? (
-              <div className="flex items-start gap-1.5">
-                <Car className="mt-0.5 size-2.5 shrink-0 text-ginger" aria-hidden="true" />
-                <div>
-                  <dt className="sr-only">Парковка</dt>
-                  <dd className="text-base text-fg-muted">{info.parking}</dd>
-                </div>
+              <div className={ROW}>
+                <dt className={TERM}>
+                  <Car className="size-2.5 text-ginger" aria-hidden="true" />
+                  <span className="sr-only">Парковка</span>
+                </dt>
+                <dd className="text-base text-fg-muted">{info.parking}</dd>
               </div>
             ) : null}
-            <div className="flex items-start gap-1.5">
-              <Phone className="mt-0.5 size-2.5 shrink-0 text-ginger" aria-hidden="true" />
-              <div>
-                <dt className="sr-only">Телефон</dt>
-                <dd>
-                  <a
-                    href={`tel:${info.phoneE164}`}
-                    className="text-lead font-semibold text-fg tabular-nums hover:text-ginger"
-                  >
-                    {info.phoneDisplay}
-                  </a>
-                </dd>
-              </div>
+            <div className={ROW}>
+              <dt className={TERM}>
+                <Phone className="size-2.5 text-ginger" aria-hidden="true" />
+                <span className="sr-only">Телефон</span>
+              </dt>
+              <dd>
+                <a
+                  href={`tel:${info.phoneE164}`}
+                  className="text-lead font-semibold text-fg tabular-nums hover:text-ginger"
+                >
+                  {info.phoneDisplay}
+                </a>
+              </dd>
             </div>
           </dl>
           <div className="flex flex-col gap-1.5 pt-1 sm:flex-row sm:flex-wrap sm:gap-2">

@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { Banknote, Clock, CreditCard, QrCode, Store, Truck } from "lucide-react";
@@ -11,12 +10,13 @@ import { formatWeekHours } from "@/lib/order/schedule";
 import { yandexMapsConfig } from "@/server/maps/config";
 import { getSettings } from "@/server/settings";
 import { getZones } from "@/server/zones";
+import { pageMetadata } from "@/lib/seo/meta";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: "Доставка и оплата",
-  description: "Зоны доставки, стоимость и минимальная сумма заказа, время доставки и способы оплаты.",
-  alternates: { canonical: "/delivery" },
-};
+  description: "Зоны доставки на карте, стоимость и минимальная сумма заказа, время доставки и способы оплаты.",
+  path: "/delivery",
+});
 
 const payments = [
   {
@@ -35,7 +35,11 @@ async function DeliveryContent() {
   const active = zones.filter((z) => z.isActive);
   const orderHours = formatWeekHours(settings.orderHours);
   const schema = (
-    <ZonesMap zones={zones} center={{ lat: settings.lat, lng: settings.lng }} label="Схема зон доставки вокруг ресторана" />
+    <ZonesMap
+      zones={zones}
+      center={{ lat: settings.lat, lng: settings.lng }}
+      label="Схема зон доставки вокруг ресторана"
+    />
   );
 
   return (

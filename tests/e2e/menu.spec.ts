@@ -48,7 +48,7 @@ test.describe("меню", () => {
     await page.goto("/menu");
     const card = page.locator("article", { has: page.getByRole("heading", { name: "Ролл с угрём" }) });
     await expect(card.getByText("Закончилось")).toBeVisible();
-    await expect(card.getByRole("button", { name: "Ролл с угрём закончилось" })).toBeDisabled();
+    await expect(card.getByRole("button", { name: "Нет в наличии — Ролл с угрём" })).toBeDisabled();
 
     await page.goto("/menu/unagi-roll");
     await expect(page.getByRole("heading", { level: 1, name: "Ролл с угрём" })).toBeVisible();

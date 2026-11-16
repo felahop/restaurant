@@ -1,6 +1,17 @@
 # Сумиби — сайт ресторана с доставкой
 
-Next.js 16 (App Router) · TypeScript · Tailwind CSS 4. Подробный README с базой, оплатой и выкладкой — на этапе 8.
+Сайт ресторана азиатской кухни: меню, корзина и оформление на одном экране, онлайн-оплата, доставка по зонам, бронь,
+личный кабинет с бонусами и админ-панель для владельца и менеджеров.
+
+Next.js 16 (App Router) · TypeScript (strict) · Tailwind CSS 4 · PostgreSQL 16 + Prisma 7 · Zod · Vitest · Playwright ·
+Docker Compose + Caddy.
+
+**Все данные ресторана — демо** (название «Сумиби», адрес, телефоны, меню, отзывы): замените их в админке
+(«Настройки», «Меню», «Доставка») и в `src/config/restaurant.ts` (логотип, SEO-заголовки, страна и кухни для разметки).
+
+Содержание: [быстрый старт](#быстрый-старт) · [переменные окружения](#переменные-окружения) ·
+[админ-панель](#админ-панель-admin) · [оплата](#оплата) · [выкладка на сервер](#выкладка-на-сервер-vps) ·
+[проверки](#проверки) · [где что лежит](#где-что-лежит)
 
 ## Быстрый старт
 
@@ -15,6 +26,29 @@ npm run dev                  # http://localhost:3000, витрина компо�
 
 Полный сброс базы с демо-данными: `npm run db:reset`. Повторный `db:seed` безопасен: записи обновляются по slug,
 настройки, изменённые в админке, не затираются.
+
+Нужны Node.js 22 и Docker (для базы). Вход в админку — `/admin/login`, логины `owner` и `manager`, пароли — из
+`ADMIN_OWNER_PASSWORD` / `ADMIN_MANAGER_PASSWORD` (или те, что напечатал сид).
+
+## Переменные окружения
+
+Полный список с пояснениями — в [`.env.example`](.env.example) (разработка) и [`.env.production.example`](.env.production.example)
+(сервер). Секреты хранятся только в переменных окружения, в репозиторий не попадают.
+
+| Переменная                                                                               | Нужна             | Зачем                                                                                         |
+| ---------------------------------------------------------------------------------------- | ----------------- | --------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                                                                           | да                | PostgreSQL. На сервере собирается в `docker-compose.prod.yml` из `POSTGRES_PASSWORD`.         |
+| `APP_SECRET`                                                                             | да                | Подписи адресов, кодов входа, тестовых платежей. Не короче 32 символов.                       |
+| `NEXT_PUBLIC_SITE_URL`                                                                   | да                | Полный адрес сайта: ссылки, sitemap, canonical, возврат после оплаты. Задаётся **до сборки**. |
+| `ADMIN_OWNER_PASSWORD`, `ADMIN_MANAGER_PASSWORD`                                         | при первом сиде   | Пароли первых сотрудников.                                                                    |
+| `PAYMENT_PROVIDER`, `YOOKASSA_*`                                                         | для оплаты        | `mock` — тестовая оплата, `yookassa` — боевая. См. «Оплата».                                  |
+| `GEO_PROVIDER`, `YANDEX_GEOSUGGEST_API_KEY`, `YANDEX_GEOCODER_API_KEY`, `DADATA_API_KEY` | нет               | Подсказки адресов. Без ключей — демо-справочник.                                              |
+| `YANDEX_MAPS_STATIC_API_KEY`, `YANDEX_MAPS_JS_API_KEY`                                   | нет               | Статичная карта и карта зон. Без ключей — фирменная схема.                                    |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`                                                 | нет               | Уведомления о заказах, бронях, сообщениях. Без них — запись в лог.                            |
+| `CRON_SECRET`                                                                            | нет               | Адрес напоминаний о предзаказах для cron.                                                     |
+| `SMS_PROVIDER`, `ALLOW_DEMO_SMS`                                                         | нет               | Вход по коду. Сейчас каркас (демо-режим).                                                     |
+| `STORAGE_DRIVER`, `UPLOAD_DIR`, `S3_*`                                                   | нет               | Где хранить фото: папка или S3-хранилище.                                                     |
+| `RATE_LIMIT_SCALE`                                                                       | только для тестов | Множитель лимитов частоты. В продакшене не задавайте.                                         |
 
 ## Админ-панель (`/admin`)
 
@@ -114,6 +148,75 @@ npm run dev                  # http://localhost:3000, витрина компо�
   для чека (обязательно для «Чеков от ЮKassa»). Значения налоговых параметров выбирает бухгалтер.
 - Страница заказа `/order/<токен>` обновляется сама (опрос раз в 5 секунд), при неудачной оплате предлагает повторить.
 
+## Выкладка на сервер (VPS)
+
+Сайт, база и Caddy (HTTPS от Let's Encrypt) запускаются через `docker-compose.prod.yml`. Проверено: образы собираются,
+миграции применяются, сид, заказ, вход в админку, загрузка и сжатие фото, резервная копия и восстановление.
+
+**Сервер:** Ubuntu 24.04 (или любой Linux с Docker), от 2 ГБ памяти и 2 vCPU, 20 ГБ диска. Установите Docker Engine с
+плагином compose (инструкция на docs.docker.com). Откройте в фаерволе только 22, 80 и 443.
+
+**Домен:** A-запись (и AAAA, если есть IPv6) на IP сервера — до первого запуска, иначе Caddy не получит сертификат.
+
+```bash
+# 1. Код
+sudo mkdir -p /opt/restaurant && sudo chown $USER /opt/restaurant
+git clone <адрес репозитория> /opt/restaurant && cd /opt/restaurant
+
+# 2. Настройки: заполните домен, пароли, APP_SECRET, ключи ЮKassa
+cp .env.production.example .env.production
+nano .env.production            # openssl rand -base64 48 — для APP_SECRET и POSTGRES_PASSWORD
+
+# 3. Сборка и запуск (миграции применяются автоматически сервисом migrate)
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+
+# 4. Первый запуск: настройки ресторана, меню, зоны, сотрудники (потом всё меняется в админке)
+docker compose -f docker-compose.prod.yml --env-file .env.production run --rm migrate npx prisma db seed
+
+# 5. Проверка
+curl https://<домен>/api/health   # {"ok":true}
+```
+
+**Обновление:** `git pull && docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build` —
+пересоберётся образ, новые миграции применятся до запуска сайта. Данные (база, фото) лежат в томах Docker и не теряются.
+
+**Cron на сервере** (`crontab -e`):
+
+```cron
+# Резервная копия базы и фото каждую ночь, хранится 14 дней в /opt/restaurant/backups
+15 4 * * * cd /opt/restaurant && ./deploy/backup.sh >> backups/backup.log 2>&1
+# Напоминания о предзаказах, если лента заказов закрыта (нужен CRON_SECRET в .env.production)
+*/5 * * * * curl -fsS -X POST -H "Authorization: Bearer <CRON_SECRET>" https://<домен>/api/cron/preorder-reminders > /dev/null
+```
+
+Копируйте `backups/` и вне сервера (S3, другой сервер). **Восстановление базы:**
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.production exec -T db \
+  pg_restore -U restaurant -d restaurant --clean --if-exists < backups/db_<дата>.dump
+```
+
+**Логи:** `docker compose -f docker-compose.prod.yml logs -f app` (и `caddy`, `db`).
+
+Заметки:
+
+- Сайт рассчитан на один экземпляр приложения: кэш данных в памяти процесса. Для нескольких экземпляров нужен общий
+  кэш и одинаковый `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` (см. документацию Next.js «Self-hosting»).
+- `NEXT_PUBLIC_SITE_URL` встраивается при сборке: после смены домена пересоберите образ.
+- Caddy подставляет в `X-Forwarded-For` настоящий IP гостя — на нём держатся лимиты частоты и проверка уведомлений ЮKassa.
+  Если перед сервером есть ещё один прокси или CDN, настройте `trusted_proxies` в `deploy/Caddyfile`.
+- Сборке не нужна база: всё, что читается из неё, рендерится во время запроса. Проверка: `npm run build:nodb`.
+
+## SEO, скорость, доступность
+
+- Метатеги и Open Graph на каждой странице (`src/lib/seo/meta.ts`), фирменная картинка для ссылок
+  (`src/app/opengraph-image.tsx`), иконки (`icon.svg`, `apple-icon`).
+- `robots.txt` (закрыты админка, API, корзина, кабинет, заказы) и `sitemap.xml` со всеми блюдами из базы.
+- Разметка schema.org: `Restaurant` (главная, контакты), `Menu` (меню), `MenuItem` (страница блюда) — `src/lib/seo/schema.ts`.
+- Lighthouse (телефон, без кэша): главная, меню, доставка, бронь — 96–97 по скорости и 100 по доступности;
+  страница блюда — 90, контакты — 88, корзина — 90.
+- Доступность проверяется автотестом axe-core (WCAG 2.1 A/AA) на ключевых страницах: `tests/e2e/a11y.spec.ts`.
+
 ## Проверки
 
 ```bash
@@ -123,8 +226,10 @@ npm test             # Vitest: суммы, скидки, зоны, слоты, �
 npm run test:integration  # Vitest с настоящей базой: идемпотентность уведомлений об оплате и бонусов
 npm run build
 npx playwright install chromium   # один раз
-npm run test:e2e     # Playwright на 375 и 1440 px (сам запустит npm start с RATE_LIMIT_SCALE=50; нужна база с сидом
-                     # и пароли ADMIN_OWNER_PASSWORD / ADMIN_MANAGER_PASSWORD в .env — те же, что при сиде)
+npm run test:e2e     # Playwright на 375 и 1440 px: путь гостя, оплата, админка, кабинет, SEO, доступность (axe)
+                     # Сам запустит npm start с RATE_LIMIT_SCALE=50 и ALLOW_DEMO_SMS=true; нужна база с сидом
+                     # и пароли ADMIN_OWNER_PASSWORD / ADMIN_MANAGER_PASSWORD в .env — те же, что при сиде
+npm run build:nodb   # сборка с недоступной базой: доказывает, что выкладке база при сборке не нужна
 ```
 
 ## Где что лежит
@@ -138,3 +243,9 @@ npm run test:e2e     # Playwright на 375 и 1440 px (сам запустит n
 - `src/app/globals.css` — дизайн-токены «Тушь и огонь». Единственное место с «сырыми» цветами и размерами.
 - `src/design/tokens.ts` — зеркало цветов для TS (тест сверяет его с CSS).
 - `src/components/ui` — кнопки, поля, метки; `src/components/site` — шапка, подвал, карточка блюда; `src/components/brand` — печать, мазок кисти, иероглифы.
+- `src/server/payments` — оплата (интерфейс, ЮKassa, заглушка, уведомления); `src/server/admin/refunds.ts` — возвраты.
+- `src/server/auth`, `src/server/sms` — вход гостя по коду; `src/server/account.ts` — кабинет.
+- `src/lib/seo`, `src/app/sitemap.ts`, `src/app/robots.ts`, `src/app/opengraph-image.tsx` — SEO.
+- `Dockerfile`, `docker-compose.prod.yml`, `deploy/Caddyfile`, `deploy/backup.sh` — выкладка на сервер.
+- `tests/unit` — расчёты (суммы, скидки, зоны, слоты, чеки, бронь, аналитика); `tests/integration` — оплата с настоящей
+  базой; `tests/e2e` — сценарии в браузере на 375 и 1440 px.

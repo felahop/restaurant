@@ -68,8 +68,8 @@ export function DishCard({
           <Price value={dish.price} oldValue={dish.oldPrice} />
           <div className="relative z-10">
             {soldOut ? (
-              <Button size="sm" variant="ghost" disabled aria-label={`${dish.name} закончилось`}>
-                Нет в наличии
+              <Button size="sm" variant="ghost" disabled>
+                Нет в наличии<span className="sr-only"> — {dish.name}</span>
               </Button>
             ) : dish.requiresChoice ? (
               <ButtonLink href={href} size="sm" variant="secondary" aria-label={`Выбрать добавки: ${dish.name}`}>

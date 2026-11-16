@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { PromoBanners } from "@/components/home/PromoBanners";
@@ -6,18 +5,27 @@ import { MenuBrowser } from "@/components/menu/MenuBrowser";
 import { DishCardSkeleton } from "@/components/site/DishCard";
 import { Eyebrow } from "@/components/ui/Typography";
 import { restaurant } from "@/config/restaurant";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { menuSchema } from "@/lib/seo/schema";
+import { SITE_URL } from "@/lib/site-url";
 import { getMenu } from "@/server/menu";
+import { pageMetadata } from "@/lib/seo/meta";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: "Меню",
   description: `Меню ${restaurant.name}: рамен, вок, бао и димсамы, роллы, супы, напитки и десерты. Доставка и самовывоз.`,
-  alternates: { canonical: "/menu" },
-};
+  path: "/menu",
+});
 
 async function MenuData() {
   await connection(); // меню читается из базы при запросе (и кэшируется), а не при сборке
   const categories = await getMenu();
-  return <MenuBrowser categories={categories} />;
+  return (
+    <>
+      <JsonLd data={menuSchema(categories, SITE_URL, restaurant.name)} />
+      <MenuBrowser categories={categories} />
+    </>
+  );
 }
 
 function MenuSkeleton() {
