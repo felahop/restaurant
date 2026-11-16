@@ -6,10 +6,12 @@ import {
   toMajorString,
   toMinorUnits,
   type CreatePaymentInput,
+  type CreateRefundInput,
   type CreatedPayment,
   type PaymentProvider,
   type PaymentSnapshot,
   type ReceiptInput,
+  type RefundSnapshot,
   type VerifiedNotification,
 } from "./types";
 
@@ -97,6 +99,14 @@ export function receiptBody(amount: number, receipt: ReceiptInput, cfg: NonNulla
   };
 }
 
+type ApiRefund = { id: string; payment_id: string; status: RefundSnapshot["status"]; amount: { value: string } };
+const toRefund = (r: ApiRefund): RefundSnapshot => ({
+  id: r.id,
+  paymentId: r.payment_id,
+  status: r.status,
+  amount: toMinorUnits(r.amount.value),
+});
+
 export class YooKassaProvider implements PaymentProvider {
   readonly name = "yookassa";
 
@@ -136,6 +146,39 @@ export class YooKassaProvider implements PaymentProvider {
     const url = payment.confirmation?.confirmation_url;
     if (!url) throw new Error("ЮKassa не вернула ссылку на оплату");
     return { paymentId: payment.id, confirmationUrl: url };
+  }
+
+  /** Возврат: POST /refunds (payment_id, amount, description, receipt) — по спецификации OpenAPI ЮKassa. */
+  async createRefund(input: CreateRefundInput): Promise<RefundSnapshot> {
+    const body = {
+      payment_id: input.paymentId,
+      amount: { value: toMajorString(input.amount), currency: "RUB" },
+      description: input.description.slice(0, 250),
+      ...(input.receipt ? { receipt: receiptBody(input.amount, input.receipt, receiptConfig()!) } : {}),
+    };
+    const res = await fetch(`${API}/refunds`, {
+      method: "POST",
+      headers: {
+        Authorization: this.authHeader(),
+        "Idempotence-Key": input.idempotenceKey.slice(0, 64),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+      cache: "no-store",
+    });
+    if (!res.ok) throw new Error(`ЮKassa: возврат, ответ ${res.status}`);
+    return toRefund((await res.json()) as ApiRefund);
+  }
+
+  async fetchRefund(refundId: string): Promise<RefundSnapshot> {
+    const res = await fetch(`${API}/refunds/${encodeURIComponent(refundId)}`, {
+      headers: { Authorization: this.authHeader() },
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+      cache: "no-store",
+    });
+    if (!res.ok) throw new Error(`ЮKassa: статус возврата, ответ ${res.status}`);
+    return toRefund((await res.json()) as ApiRefund);
   }
 
   async fetchPayment(paymentId: string): Promise<PaymentSnapshot> {

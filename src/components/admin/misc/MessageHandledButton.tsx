@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { Button } from "@/components/ui/Button";
-import { setMessageHandledAction } from "@/app/admin/(panel)/reviews/actions";
+import { setMessageHandledAction } from "@/app/admin/(panel)/messages/actions";
 
 export function MessageHandledButton({ id, handled }: { id: string; handled: boolean }) {
   const router = useRouter();

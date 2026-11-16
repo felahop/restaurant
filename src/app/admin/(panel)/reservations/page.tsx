@@ -4,6 +4,7 @@ import { ReservationStatus } from "@/components/admin/misc/ReservationRow";
 import { requireAdmin } from "@/server/admin/auth";
 import { dayRange } from "@/server/admin/orders";
 import { db } from "@/server/db";
+import { getSettings } from "@/server/settings";
 
 export const metadata: Metadata = { title: "Брони" };
 /** Админка: переходы могут ждать данные (свежесть важнее мгновенного кадра). */
@@ -15,11 +16,17 @@ export default async function ReservationsPage({ searchParams }: { searchParams:
   const { from, iso, timezone } = await dayRange(date);
   // Брони на выбранный день и на неделю вперёд.
   const to = new Date(from.getTime() + 7 * 86_400_000);
-  const rows = await db.reservation.findMany({ where: { startsAt: { gte: from, lt: to } }, orderBy: { startsAt: "asc" } });
+  const [rows, settings] = await Promise.all([
+    db.reservation.findMany({ where: { startsAt: { gte: from, lt: to } }, orderBy: { startsAt: "asc" } }),
+    getSettings(),
+  ]);
   const fmt = new Intl.DateTimeFormat("ru-RU", { timeZone: timezone, weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
   return (
     <div className="flex max-w-300 flex-col gap-2">
-      <AdminPageHeader title="Брони" description="Брони на 7 дней с выбранной даты. Новые брони приходят и в Telegram." />
+      <AdminPageHeader
+        title="Брони"
+        description={`Брони на 7 дней с выбранной даты. Мест для брони: ${settings.bookingCapacity}, стол занят ${settings.bookingDurationMinutes} мин — когда мест нет, время на сайте недоступно. Меняется в «Настройках».`}
+      />
       <form className="flex items-end gap-1">
         <label className="flex flex-col gap-0.5 text-sm font-medium">
           С даты

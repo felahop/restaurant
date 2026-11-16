@@ -46,6 +46,7 @@ async function OrderDetails({ token }: { token: string }) {
     readyAt: iso(order.readyAt),
     completedAt: iso(order.completedAt),
     hasReview: Boolean(order.review),
+    refundStatus: order.refundStatus,
   };
 
   return (

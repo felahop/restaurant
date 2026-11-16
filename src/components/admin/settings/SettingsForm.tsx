@@ -7,7 +7,7 @@ import type { WeekHoursInput } from "@/lib/admin/hours";
 import { saveSettingsAction, type SettingsInput } from "@/app/admin/(panel)/settings/actions";
 import { WeekHoursEditor } from "./WeekHoursEditor";
 
-export type SettingsFormValues = Omit<SettingsInput, "lat" | "lng" | "etaFromMin" | "etaToMin" | "pickupMinutes" | "bonusEarnPercent" | "bonusMaxSpendPercent" | "scheduleStepMinutes" | "scheduleLeadMinutes" | "scheduleDaysAhead" | "preorderAlertMinutes" | "openingHours" | "topBarItems"> & {
+export type SettingsFormValues = Omit<SettingsInput, "lat" | "lng" | "etaFromMin" | "etaToMin" | "pickupMinutes" | "bonusEarnPercent" | "bonusMaxSpendPercent" | "scheduleStepMinutes" | "scheduleLeadMinutes" | "scheduleDaysAhead" | "preorderAlertMinutes" | "bookingCapacity" | "bookingDurationMinutes" | "openingHours" | "topBarItems"> & {
   lat: string;
   lng: string;
   etaFromMin: string;
@@ -19,6 +19,8 @@ export type SettingsFormValues = Omit<SettingsInput, "lat" | "lng" | "etaFromMin
   scheduleLeadMinutes: string;
   scheduleDaysAhead: string;
   preorderAlertMinutes: string;
+  bookingCapacity: string;
+  bookingDurationMinutes: string;
   openingHours: WeekHoursInput;
   topBarItems: string[];
 };
@@ -58,6 +60,8 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
         scheduleLeadMinutes: n(v.scheduleLeadMinutes),
         scheduleDaysAhead: n(v.scheduleDaysAhead),
         preorderAlertMinutes: n(v.preorderAlertMinutes),
+        bookingCapacity: n(v.bookingCapacity),
+        bookingDurationMinutes: n(v.bookingDurationMinutes),
         topBarItems: v.topBarItems.map((t) => t.trim()).filter(Boolean),
       });
       setErrors(res.ok ? {} : (res.fields ?? {}));
@@ -108,6 +112,19 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
       <Section title="Часы работы зала">
         <WeekHoursEditor idPrefix="open" value={v.openingHours} onChange={(h) => set("openingHours", h)} />
         <p className="text-sm text-fg-muted">Часы приёма заказов на доставку настраиваются в разделе «Доставка».</p>
+      </Section>
+
+      <Section title="Бронь столиков">
+        <div className="grid gap-2 sm:grid-cols-2">
+          {text("bookingCapacity", "Мест для брони", {
+            inputMode: "numeric",
+            hint: "Сколько гостей одновременно можно посадить по брони — часть зала можно оставить без брони",
+          })}
+          {text("bookingDurationMinutes", "Стол занят по брони, мин", {
+            inputMode: "numeric",
+            hint: "Пока идёт бронь, её места недоступны для других",
+          })}
+        </div>
       </Section>
 
       <Section title="Плашка над шапкой">

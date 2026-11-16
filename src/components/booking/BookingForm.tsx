@@ -75,7 +75,7 @@ export function BookingForm({ days, maxGuests, phoneDisplay, phoneE164, defaults
       });
       const data = (await res.json()) as { error?: string; whenLabel?: string; code?: string };
       if (!res.ok) {
-        if (data.code === "TIME_INVALID") setTime(null);
+        if (data.code === "TIME_INVALID" || data.code === "FULL") setTime(null);
         setErrors({ form: data.error ?? "Не получилось забронировать" });
         return;
       }
@@ -128,12 +128,15 @@ export function BookingForm({ days, maxGuests, phoneDisplay, phoneE164, defaults
               key={t.value}
               type="button"
               aria-pressed={time === t.value}
+              disabled={t.seatsLeft < guests}
+              title={t.seatsLeft < guests ? (t.seatsLeft ? `Свободно мест: ${t.seatsLeft}` : "Зал занят") : undefined}
+              aria-label={t.seatsLeft < guests ? `${t.time} — ${t.seatsLeft ? `свободно мест: ${t.seatsLeft}` : "занято"}` : undefined}
               onClick={() => {
                 setTime(t.value);
                 setErrors((e) => ({ ...e, time: "" }));
               }}
               className={cn(
-                "inline-flex h-5.5 items-center justify-center rounded-full border text-sm font-semibold tabular-nums transition-colors duration-150",
+                "inline-flex h-5.5 items-center justify-center rounded-full border text-sm font-semibold tabular-nums transition-colors duration-150 disabled:cursor-not-allowed disabled:border-line disabled:text-fg-muted disabled:line-through",
                 time === t.value ? "border-fg bg-fg text-canvas" : "border-line-strong text-fg hover:border-fg",
               )}
             >
@@ -155,7 +158,12 @@ export function BookingForm({ days, maxGuests, phoneDisplay, phoneE164, defaults
             value={guests}
             min={1}
             max={maxGuests}
-            onChange={setGuests}
+            onChange={(n) => {
+              setGuests(n);
+              // Выбранное время могло перестать вмещать компанию — сбрасываем.
+              const chosen = day?.times.find((t) => t.value === time);
+              if (chosen && chosen.seatsLeft < n) setTime(null);
+            }}
             itemName="гостей"
             labels={{ group: "Число гостей", decrement: "Меньше гостей", increment: "Больше гостей" }}
           />

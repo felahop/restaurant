@@ -1,4 +1,5 @@
 import { after } from "next/server";
+import { syncRefund } from "@/server/admin/refunds";
 import { jsonError } from "@/server/http";
 import { notifyOrderIfDue } from "@/server/order-notify";
 import { getPaymentProvider, isMockPayments } from "@/server/payments";
@@ -19,6 +20,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
   if (!notification) return jsonError(403, "Уведомление не прошло проверку подлинности");
 
   try {
+    // Уведомления о возвратах (refund.succeeded): статус берём из API сервиса по id возврата.
+    if (notification.event.startsWith("refund.")) {
+      const status = await syncRefund(notification.paymentId, provider.name);
+      return Response.json({ ok: true, result: status ?? "ignored" });
+    }
     const result = await processPaymentNotification(provider, notification);
     if (result.result === "paid" && result.firstTime) {
       after(() => notifyOrderIfDue(result.orderId));

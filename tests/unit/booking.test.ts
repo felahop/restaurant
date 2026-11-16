@@ -37,3 +37,27 @@ describe("время брони", () => {
     expect(isValidBookingTime("2026-11-16T19:30:00.000Z", hours, TZ, now)).toBe(false); // 22:30 — поздно
   });
 });
+
+describe("вместимость зала", async () => {
+  const { seatsLeftAt } = await import("@/lib/booking");
+  const at = (iso: string) => new Date(iso);
+  const cap = {
+    seats: 20,
+    durationMinutes: 120,
+    occupied: [
+      { startsAt: at("2026-11-16T16:00:00Z"), guests: 8 }, // 19:00–21:00
+      { startsAt: at("2026-11-16T17:00:00Z"), guests: 6 }, // 20:00–22:00
+    ],
+  };
+
+  it("брони, пересекающиеся по времени, занимают места", () => {
+    expect(seatsLeftAt(at("2026-11-16T14:00:00Z"), cap)).toBe(20); // 17:00–19:00 — ещё свободно
+    expect(seatsLeftAt(at("2026-11-16T15:00:00Z"), cap)).toBe(12); // 18:00 — пересекается с 19:00
+    expect(seatsLeftAt(at("2026-11-16T16:30:00Z"), cap)).toBe(6); // 19:30 — обе брони
+    expect(seatsLeftAt(at("2026-11-16T19:00:00Z"), cap)).toBe(20); // 22:00 — все ушли
+  });
+
+  it("свободных мест не бывает меньше нуля", () => {
+    expect(seatsLeftAt(at("2026-11-16T16:30:00Z"), { ...cap, seats: 10 })).toBe(0);
+  });
+});

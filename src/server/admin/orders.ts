@@ -106,7 +106,11 @@ export async function changeOrderStatus(orderId: string, to: OrderStatusValue, c
     const now = new Date();
     const field = STATUS_TIMESTAMP[to];
     const data: Prisma.OrderUpdateInput = { status: to, ...(field ? { [field]: now } : {}) };
-    if (to === "CANCELED") data.cancelReason = cancelReason?.trim() || "Отменён рестораном";
+    if (to === "CANCELED") {
+      data.cancelReason = cancelReason?.trim() || "Отменён рестораном";
+      // Деньги уже списаны — заявка на возврат уходит владельцу на решение.
+      if (order.paymentStatus === "SUCCEEDED" && !order.refundStatus) data.refundStatus = "REQUESTED";
+    }
     await tx.order.update({ where: { id: orderId }, data });
 
     // Отмена: списанные бонусы возвращаются гостю, начисленные за этот заказ — снимаются (по одному разу).

@@ -14,7 +14,9 @@ export type AuditSection =
   | "reviews"
   | "analytics"
   | "settings"
-  | "staff";
+  | "staff"
+  | "refunds"
+  | "messages";
 
 export type AuditEntry = {
   section: AuditSection;

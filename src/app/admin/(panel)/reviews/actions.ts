@@ -33,16 +33,3 @@ export async function deleteReviewAction(id: string): Promise<ActionResult> {
   await audit(g.admin, { section: "reviews", action: "review.delete", entityId: id, summary: `Удалил отзыв: ${r.authorName}, ${r.rating}★` });
   return ok("Отзыв удалён");
 }
-
-export async function setMessageHandledAction(id: string, handled: boolean): Promise<ActionResult> {
-  const g = await guardAction("reviews");
-  if ("denied" in g) return g.denied;
-  const m = await db.contactMessage.update({ where: { id }, data: { handledAt: handled ? new Date() : null }, select: { name: true } });
-  await audit(g.admin, {
-    section: "reviews",
-    action: handled ? "message.handled" : "message.reopen",
-    entityId: id,
-    summary: `${handled ? "Обработал" : "Вернул в работу"} сообщение с сайта от ${m.name}`,
-  });
-  return ok(handled ? "Отмечено как обработанное" : "Сообщение снова в работе");
-}

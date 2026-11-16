@@ -30,6 +30,6 @@ export async function POST(request: Request) {
   if (!parsed.success) return jsonError(400, parsed.error.issues[0]?.message ?? "Проверьте поля", { field: parsed.error.issues[0]?.path[0] });
   const { name, phone, email, message } = parsed.data;
   await db.contactMessage.create({ data: { name, phone, email, message, consentAt: new Date() } });
-  after(() => notifySafely((n) => n.newMessage({ adminUrl: `${siteUrl()}/admin/reviews#messages` })));
+  after(() => notifySafely((n) => n.newMessage({ adminUrl: `${siteUrl()}/admin/messages` })));
   return Response.json({ ok: true }, { status: 201 });
 }

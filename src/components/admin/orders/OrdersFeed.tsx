@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { BellOff, BellRing, Clock, Store, Truck } from "lucide-react";
+import { BellOff, BellRing, CalendarDays, Clock, Mail, Store, Truck, Undo2 } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
@@ -42,6 +42,31 @@ const FILTERS: { value: Filter; label: string }[] = [
 
 const POLL_MS = 5000;
 
+type Alerts = { reservations: string[] | null; messages: string[] | null; refunds: string[] | null };
+type AlertKind = keyof Alerts;
+
+const ALERTS: { kind: AlertKind; href: string; label: string; Icon: typeof Mail }[] = [
+  { kind: "reservations", href: "/admin/reservations", label: "Новые брони", Icon: CalendarDays },
+  { kind: "messages", href: "/admin/messages", label: "Сообщения", Icon: Mail },
+  { kind: "refunds", href: "/admin/refunds", label: "Возвраты ждут решения", Icon: Undo2 },
+];
+
+/** Мягкий одиночный сигнал — брони, сообщения, возвраты (отличается от двойного сигнала заказа). */
+function chime(ctx: AudioContext) {
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = "triangle";
+  osc.frequency.setValueAtTime(660, now);
+  osc.frequency.exponentialRampToValueAtTime(990, now + 0.25);
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(0.25, now + 0.03);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
+  osc.connect(gain).connect(ctx.destination);
+  osc.start(now);
+  osc.stop(now + 0.5);
+}
+
 /** Короткий двойной сигнал через Web Audio — без файлов. */
 function beep(ctx: AudioContext) {
   const now = ctx.currentTime;
@@ -70,6 +95,9 @@ export function OrdersFeed({ timeZone, initialDate }: { timeZone: string; initia
   const [pending, startTransition] = useTransition();
   const router = useRouter();
   const [alertMinutes, setAlertMinutes] = useState(120);
+  const [alerts, setAlerts] = useState<Alerts>({ reservations: null, messages: null, refunds: null });
+  const [freshAlerts, setFreshAlerts] = useState<Set<AlertKind>>(new Set());
+  const seenAlerts = useRef<Record<AlertKind, Set<string>> | null>(null);
   /** Заказы, о которых уже просигналили (или которые были в ленте при открытии). */
   const alerted = useRef<Set<string> | null>(null);
   const audio = useRef<AudioContext | null>(null);
@@ -81,10 +109,23 @@ export function OrdersFeed({ timeZone, initialDate }: { timeZone: string; initia
         router.push("/admin/login");
         return;
       }
-      const data = (await res.json()) as { orders: FeedOrder[]; alertMinutes: number };
+      const data = (await res.json()) as { orders: FeedOrder[]; alertMinutes: number; alerts: Alerts };
       setOrders(data.orders);
       setAlertMinutes(data.alertMinutes);
+      setAlerts(data.alerts);
       setError(null);
+      // Брони, сообщения, возвраты: сигнал, когда появилось что-то новое с момента открытия ленты.
+      const kinds = Object.keys(data.alerts) as AlertKind[];
+      if (seenAlerts.current) {
+        const added = kinds.filter((k) => (data.alerts[k] ?? []).some((id) => !seenAlerts.current![k].has(id)));
+        if (added.length) {
+          setFreshAlerts((prev) => new Set([...prev, ...added]));
+          if (audio.current) chime(audio.current);
+        }
+      }
+      seenAlerts.current = Object.fromEntries(
+        kinds.map((k) => [k, new Set([...(seenAlerts.current?.[k] ?? []), ...(data.alerts[k] ?? [])])]),
+      ) as Record<AlertKind, Set<string>>;
       // Сигнал и подсветка: новый заказ «как можно скорее» — сразу, предзаказ — когда до него осталось alertMinutes.
       const now = new Date();
       const due = data.orders.filter((o) => o.status === "ACCEPTED" && isOrderDue(o, data.alertMinutes, now)).map((o) => o.id);
@@ -176,6 +217,27 @@ export function OrdersFeed({ timeZone, initialDate }: { timeZone: string; initia
           {soundOn ? "Звук включён" : "Включить звук"}
         </Button>
       </div>
+
+      {ALERTS.some((a) => alerts[a.kind]?.length) ? (
+        <ul className="flex flex-wrap gap-1" aria-label="Требуют внимания">
+          {ALERTS.filter((a) => alerts[a.kind]?.length).map(({ kind, href, label, Icon }) => (
+            <li key={kind}>
+              <Link
+                href={href}
+                onClick={() => setFreshAlerts((prev) => new Set([...prev].filter((k) => k !== kind)))}
+                className={cn(
+                  "inline-flex min-h-5.5 items-center gap-1 rounded-full border px-1.5 text-sm font-semibold text-fg transition-colors duration-150 hover:bg-surface-2",
+                  freshAlerts.has(kind) ? "border-ginger-deep bg-surface shadow-soft" : "border-line-strong",
+                )}
+              >
+                <Icon className="size-2" aria-hidden="true" />
+                {label}: {alerts[kind]!.length}
+                {freshAlerts.has(kind) ? <Badge tone="hit">Новое</Badge> : null}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : null}
 
       <p role="status" aria-live="polite" className="min-h-2.5 text-sm text-fg-muted">
         {error ??

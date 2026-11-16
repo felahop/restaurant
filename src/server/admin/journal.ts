@@ -14,6 +14,8 @@ export const SECTION_LABELS: Record<AuditSection, string> = {
   analytics: "Аналитика",
   settings: "Настройки",
   staff: "Сотрудники",
+  refunds: "Возвраты",
+  messages: "Сообщения",
 };
 
 export const PAGE_SIZE = 50;

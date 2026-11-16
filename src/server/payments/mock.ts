@@ -4,9 +4,11 @@ import { receiptSum } from "@/lib/payments/receipt";
 import { db } from "@/server/db";
 import type {
   CreatePaymentInput,
+  CreateRefundInput,
   CreatedPayment,
   PaymentProvider,
   PaymentSnapshot,
+  RefundSnapshot,
   VerifiedNotification,
 } from "./types";
 
@@ -39,6 +41,18 @@ export class MockPaymentProvider implements PaymentProvider {
       data: { id, orderId: input.orderId, amount: input.amount, method: input.method, returnUrl: input.returnUrl },
     });
     return { paymentId: id, confirmationUrl: `${this.siteUrl}/pay/mock/${id}` };
+  }
+
+  /** Тестовый возврат проходит сразу. Деньги не двигаются. */
+  async createRefund(input: CreateRefundInput): Promise<RefundSnapshot> {
+    const p = await db.mockPayment.findUnique({ where: { id: input.paymentId } });
+    if (!p || p.status !== "succeeded") throw new Error("Тестовый платёж не оплачен");
+    if (input.amount > p.amount) throw new Error("Сумма возврата больше платежа");
+    return { id: `mock_refund_${input.idempotenceKey.replace(/[^a-z0-9]/gi, "").slice(-24)}`, paymentId: p.id, status: "succeeded", amount: input.amount };
+  }
+
+  async fetchRefund(refundId: string): Promise<RefundSnapshot> {
+    return { id: refundId, paymentId: "", status: "succeeded", amount: 0 };
   }
 
   async fetchPayment(paymentId: string): Promise<PaymentSnapshot> {

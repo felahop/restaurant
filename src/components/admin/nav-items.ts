@@ -3,7 +3,9 @@ import {
   CalendarDays,
   ClipboardList,
   MapPinned,
+  Mail,
   MessageSquareQuote,
+  Undo2,
   ScrollText,
   Settings,
   Tag,
@@ -15,8 +17,10 @@ import type { AdminSection } from "@/server/admin/roles";
 /** Разделы админки. Общий модуль: нужен и серверному layout, и клиентской навигации. */
 export const ADMIN_NAV: { section: AdminSection; href: string; label: string; Icon: typeof ClipboardList }[] = [
   { section: "orders", href: "/admin/orders", label: "Заказы", Icon: ClipboardList },
+  { section: "refunds", href: "/admin/refunds", label: "Возвраты", Icon: Undo2 },
   { section: "menu", href: "/admin/menu", label: "Меню", Icon: UtensilsCrossed },
   { section: "reservations", href: "/admin/reservations", label: "Брони", Icon: CalendarDays },
+  { section: "messages", href: "/admin/messages", label: "Сообщения", Icon: Mail },
   { section: "delivery", href: "/admin/delivery", label: "Доставка", Icon: MapPinned },
   { section: "marketing", href: "/admin/marketing", label: "Маркетинг", Icon: Tag },
   { section: "reviews", href: "/admin/reviews", label: "Отзывы", Icon: MessageSquareQuote },

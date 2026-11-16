@@ -232,6 +232,19 @@ enum PaymentMethod {
   CASH
 }
 
+/// Возврат денег за отменённый оплаченный заказ: решение принимает владелец в админке.
+enum RefundStatus {
+  /// Ждёт решения.
+  REQUESTED
+  /// Возврат создан в платёжном сервисе и обрабатывается.
+  PENDING
+  SUCCEEDED
+  /// Владелец решил не возвращать (с причиной).
+  DECLINED
+  /// Платёжный сервис отказал — можно попробовать ещё раз.
+  FAILED
+}
+
 enum PaymentStatus {
   PENDING
   SUCCEEDED
@@ -292,6 +305,13 @@ model Order {
   notifiedAt   DateTime?
 
   cancelReason String?
+
+  refundStatus    RefundStatus?
+  refundId        String?       @unique
+  refundAmount    Int?
+  refundNote      String?
+  refundDecidedAt DateTime?
+  refundDecidedBy String?
   acceptedAt   DateTime?
   cookingAt    DateTime?
   deliveringAt DateTime?
@@ -308,6 +328,7 @@ model Order {
 
   @@index([status, createdAt])
   @@index([scheduledFor])
+  @@index([refundStatus])
   @@index([createdAt])
   @@index([userId])
 }
@@ -554,6 +575,10 @@ model Settings {
   scheduleDaysAhead    Int @default(2)
   /// За сколько минут до времени предзаказа ресторан получает сигнал и уведомление.
   preorderAlertMinutes Int @default(120)
+  /// Мест для брони одновременно (часть зала можно оставить гостям без брони).
+  bookingCapacity        Int @default(40)
+  /// Сколько стол занят по одной брони.
+  bookingDurationMinutes Int @default(120)
 
   updatedAt DateTime @updatedAt
 }

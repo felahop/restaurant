@@ -42,6 +42,8 @@ const settingsSchema = z.object({
   scheduleLeadMinutes: z.number().int().min(0).max(240),
   scheduleDaysAhead: z.number().int().min(1).max(7),
   preorderAlertMinutes: z.number().int().min(15).max(24 * 60),
+  bookingCapacity: z.number().int().min(1).max(1000),
+  bookingDurationMinutes: z.number().int().min(30).max(6 * 60),
 });
 
 export type SettingsInput = z.input<typeof settingsSchema>;

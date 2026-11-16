@@ -42,6 +42,8 @@ export default async function SettingsPage() {
     scheduleLeadMinutes: String(s.scheduleLeadMinutes),
     scheduleDaysAhead: String(s.scheduleDaysAhead),
     preorderAlertMinutes: String(s.preorderAlertMinutes),
+    bookingCapacity: String(s.bookingCapacity),
+    bookingDurationMinutes: String(s.bookingDurationMinutes),
   };
   return (
     <div className="flex max-w-240 flex-col gap-2">

@@ -1,8 +1,9 @@
 import { after } from "next/server";
 import { z } from "zod";
-import { BOOKING, isValidBookingTime } from "@/lib/booking";
+import { BOOKING, isValidBookingTime, seatsLeftAt } from "@/lib/booking";
 import { toE164 } from "@/lib/phone";
 import { getUser } from "@/server/auth/user";
+import { bookingCapacity } from "@/server/booking";
 import { db } from "@/server/db";
 import { clientIp, isSameOrigin, jsonError } from "@/server/http";
 import { notifySafely } from "@/server/notify";
@@ -39,18 +40,45 @@ export async function POST(request: Request) {
     return jsonError(409, "Это время уже недоступно. Выберите другое.", { code: "TIME_INVALID" });
   }
   const user = await getUser();
-  const reservation = await db.reservation.create({
-    data: {
-      startsAt: new Date(startsAt),
-      guests: input.guests,
-      name: input.name,
-      phone,
-      comment: input.comment || null,
-      userId: user?.id ?? null,
-      consentAt: new Date(),
-    },
-    select: { id: true },
+  // Места проверяются под общей блокировкой: две одновременные брони не займут один и тот же стол.
+  const reservation = await db.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(727001)`;
+    const occupied = await tx.reservation.findMany({
+      where: {
+        status: { in: ["NEW", "CONFIRMED"] },
+        startsAt: {
+          gt: new Date(new Date(startsAt).getTime() - settings.bookingDurationMinutes * 60_000),
+          lt: new Date(new Date(startsAt).getTime() + settings.bookingDurationMinutes * 60_000),
+        },
+      },
+      select: { startsAt: true, guests: true },
+    });
+    const left = seatsLeftAt(new Date(startsAt), {
+      seats: settings.bookingCapacity,
+      durationMinutes: settings.bookingDurationMinutes,
+      occupied,
+    });
+    if (left < input.guests) return { full: true as const, left };
+    const created = await tx.reservation.create({
+      data: {
+        startsAt: new Date(startsAt),
+        guests: input.guests,
+        name: input.name,
+        phone,
+        comment: input.comment || null,
+        userId: user?.id ?? null,
+        consentAt: new Date(),
+      },
+      select: { id: true },
+    });
+    return { full: false as const, id: created.id };
   });
+  if (reservation.full) {
+    return jsonError(409, reservation.left > 0 ? `На это время осталось мест: ${reservation.left}. Выберите другое время или позвоните нам.` : "На это время зал занят. Выберите другое время.", {
+      code: "FULL",
+      seatsLeft: reservation.left,
+    });
+  }
 
   const whenLabel = new Intl.DateTimeFormat("ru-RU", {
     timeZone: settings.timezone,

@@ -83,13 +83,15 @@ export async function processPaymentNotification(
           paymentProvider: provider.name,
           status: order.status === "AWAITING_PAYMENT" ? "ACCEPTED" : order.status,
           acceptedAt: order.acceptedAt ?? now,
+          // Оплата пришла уже после отмены — деньги нужно вернуть (решает владелец).
+          ...(order.status === "CANCELED" && !order.refundStatus ? { refundStatus: "REQUESTED" as const } : {}),
         },
       });
       if (order.promoCodeId) {
         // Деньги уже получены — промокод засчитываем даже сверх лимита.
         await tx.promoCode.update({ where: { id: order.promoCodeId }, data: { usedCount: { increment: 1 } } });
       }
-      if (order.userId) {
+      if (order.userId && order.status !== "CANCELED") {
         const amount = bonusForOrder(order, settings?.bonusEarnPercent ?? 0);
         if (amount > 0) {
           const created = await tx.bonusTransaction.createMany({

@@ -44,10 +44,27 @@ export type VerifiedNotification = {
   payload: unknown;
 };
 
+export type RefundState = "pending" | "succeeded" | "canceled";
+
+export type CreateRefundInput = {
+  paymentId: string;
+  /** Копейки. */
+  amount: number;
+  description: string;
+  /** Один ключ на заказ: повторное нажатие не создаст второй возврат. */
+  idempotenceKey: string;
+  /** Чек возврата (если чеки формирует платёжный сервис). */
+  receipt?: ReceiptInput;
+};
+
+export type RefundSnapshot = { id: string; paymentId: string; status: RefundState; amount: number };
+
 export interface PaymentProvider {
   readonly name: "mock" | "yookassa";
   createPayment(input: CreatePaymentInput): Promise<CreatedPayment>;
   fetchPayment(paymentId: string): Promise<PaymentSnapshot>;
+  createRefund(input: CreateRefundInput): Promise<RefundSnapshot>;
+  fetchRefund(refundId: string): Promise<RefundSnapshot>;
   /** Проверяет подлинность уведомления. null — уведомление поддельное или чужое. */
   verifyNotification(request: Request, rawBody: string): Promise<VerifiedNotification | null>;
 }

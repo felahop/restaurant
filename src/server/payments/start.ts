@@ -7,7 +7,7 @@ import type { ReceiptInput } from "./types";
 import { receiptConfig, receiptsEnabled } from "./yookassa";
 
 /** Чек для платежа, если включены «Чеки от ЮKassa» (YOOKASSA_RECEIPTS=true). */
-async function receiptFor(orderId: string): Promise<ReceiptInput | undefined> {
+export async function receiptFor(orderId: string): Promise<ReceiptInput | undefined> {
   if (!receiptsEnabled() || !receiptConfig()) return undefined;
   const order = await db.order.findUniqueOrThrow({
     where: { id: orderId },

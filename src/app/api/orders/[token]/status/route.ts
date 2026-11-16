@@ -28,6 +28,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
       canceledAt: true,
       updatedAt: true,
       review: { select: { id: true } },
+      refundStatus: true,
     },
   });
   if (!order) return jsonError(404, "Заказ не найден");

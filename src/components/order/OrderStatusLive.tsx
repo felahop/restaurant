@@ -23,6 +23,14 @@ export type LiveOrder = {
   readyAt: string | null;
   completedAt: string | null;
   hasReview: boolean;
+  refundStatus: "REQUESTED" | "PENDING" | "SUCCEEDED" | "DECLINED" | "FAILED" | null;
+};
+
+const REFUND_TEXT: Partial<Record<NonNullable<LiveOrder["refundStatus"]>, string>> = {
+  REQUESTED: "Заказ был оплачен — ресторан рассмотрит возврат денег и свяжется с вами.",
+  FAILED: "Заказ был оплачен — ресторан рассмотрит возврат денег и свяжется с вами.",
+  PENDING: "Возврат денег оформлен и обрабатывается платёжным сервисом.",
+  SUCCEEDED: "Деньги возвращены на карту или счёт, с которых вы платили. Срок зачисления зависит от банка.",
 };
 
 const POLL_MS = 5000;
@@ -175,7 +183,12 @@ export function OrderStatusLive({
           role="status"
         >
           <XCircle className="mt-0.5 size-2.5 shrink-0 text-accent" aria-hidden="true" />
-          {order.cancelReason ?? "Если это ошибка, позвоните нам — разберёмся."}
+          <span className="flex flex-col gap-0.5">
+            <span>{order.cancelReason ?? "Если это ошибка, позвоните нам — разберёмся."}</span>
+            {order.refundStatus && REFUND_TEXT[order.refundStatus] ? (
+              <span className="text-sm text-fg-muted">{REFUND_TEXT[order.refundStatus]}</span>
+            ) : null}
+          </span>
         </p>
       ) : null}
 

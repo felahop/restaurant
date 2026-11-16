@@ -3,13 +3,29 @@ import { orderIntervals, zonedParts, type WeekHours } from "@/lib/order/schedule
 /** Правила брони: шаг 30 минут, не раньше чем через час, на 14 дней вперёд, последняя посадка — за час до закрытия зала. */
 export const BOOKING = { stepMinutes: 30, leadMinutes: 60, daysAhead: 14, lastSeatingMinutes: 60, maxGuests: 12 } as const;
 
-export type BookingTime = { value: string; time: string };
+/** Сколько мест свободно в этот момент (по вместимости зала для брони). */
+export type BookingTime = { value: string; time: string; seatsLeft: number };
+
+/** Занятость зала: брони, которые ещё в силе (новые и подтверждённые). */
+export type Occupied = { startsAt: Date; guests: number };
+export type Capacity = { seats: number; durationMinutes: number; occupied: Occupied[] };
+
+/** Свободные места на время [at, at + длительность): брони, которые пересекаются по времени, занимают места. */
+export function seatsLeftAt(at: Date, cap: Capacity): number {
+  const dur = cap.durationMinutes * MINUTE;
+  const start = at.getTime();
+  const used = cap.occupied.reduce((sum, r) => {
+    const rs = r.startsAt.getTime();
+    return rs < start + dur && start < rs + dur ? sum + r.guests : sum;
+  }, 0);
+  return Math.max(0, cap.seats - used);
+}
 export type BookingDay = { date: string; label: string; short: string; times: BookingTime[] };
 
 const MINUTE = 60_000;
 const pad = (n: number) => String(n).padStart(2, "0");
 
-export function bookingDays(hours: WeekHours, timeZone: string, now: Date): BookingDay[] {
+export function bookingDays(hours: WeekHours, timeZone: string, now: Date, cap?: Capacity): BookingDay[] {
   const step = BOOKING.stepMinutes * MINUTE;
   const earliest = now.getTime() + BOOKING.leadMinutes * MINUTE;
   const days = new Map<string, BookingDay>();
@@ -35,7 +51,11 @@ export function bookingDays(hours: WeekHours, timeZone: string, now: Date): Book
         day = { date, short, label: `${short}, ${dayMonth.format(at)}`, times: [] };
         days.set(date, day);
       }
-      day.times.push({ value: at.toISOString(), time: `${pad(p.hour)}:${pad(p.minute)}` });
+      day.times.push({
+        value: at.toISOString(),
+        time: `${pad(p.hour)}:${pad(p.minute)}`,
+        seatsLeft: cap ? seatsLeftAt(at, cap) : BOOKING.maxGuests,
+      });
     }
   }
   return [...days.values()].sort((a, b) => a.date.localeCompare(b.date));

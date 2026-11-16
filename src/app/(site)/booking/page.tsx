@@ -6,6 +6,7 @@ import { Eyebrow } from "@/components/ui/Typography";
 import { BOOKING, bookingDays } from "@/lib/booking";
 import { formatWeekHours } from "@/lib/order/schedule";
 import { getUser } from "@/server/auth/user";
+import { bookingCapacity } from "@/server/booking";
 import { getSettings } from "@/server/settings";
 
 export const metadata: Metadata = {
@@ -16,11 +17,11 @@ export const metadata: Metadata = {
 
 async function BookingContent() {
   await connection(); // свободное время зависит от текущего момента
-  const [s, user] = await Promise.all([getSettings(), getUser()]);
+  const [s, user, capacity] = await Promise.all([getSettings(), getUser(), bookingCapacity()]);
   return (
     <div className="grid items-start gap-3 lg:grid-cols-[2fr_1fr] lg:gap-4">
       <BookingForm
-        days={bookingDays(s.openingHours, s.timezone, new Date())}
+        days={bookingDays(s.openingHours, s.timezone, new Date(), capacity)}
         maxGuests={BOOKING.maxGuests}
         phoneDisplay={s.phoneDisplay}
         phoneE164={s.phoneE164}
