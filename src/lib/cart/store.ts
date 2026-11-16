@@ -96,6 +96,18 @@ export const cart = {
   clear() {
     update(EMPTY_CART, "Корзина очищена");
   },
+  /** Замена корзины целиком (синхронизация с аккаунтом, «Повторить заказ»). */
+  replace(next: CartState, message?: string) {
+    update(next, message);
+  },
+  snapshot(): CartState {
+    ensureHydrated();
+    return state;
+  },
+  /** Подписка на изменения корзины (синхронизация с аккаунтом). */
+  subscribe(listener: () => void) {
+    return subscribe(listener);
+  },
 };
 
 export function useCart() {

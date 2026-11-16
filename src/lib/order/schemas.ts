@@ -18,6 +18,8 @@ export const quoteRequestSchema = z.object({
   type: orderTypeSchema,
   addressToken: z.string().max(4000).nullish(),
   promoCode: z.string().trim().max(40).nullish(),
+  /** Списать бонусы (сколько — решает сервер: не больше баланса и лимита в процентах). */
+  useBonus: z.boolean().default(false),
 });
 export type QuoteRequest = z.infer<typeof quoteRequestSchema>;
 
@@ -39,6 +41,7 @@ export const orderRequestSchema = quoteRequestSchema.extend({
       .refine((v) => toE164(v) !== null, "Проверьте номер телефона: нужно 10 цифр после +7"),
     comment: z.string().trim().max(500).optional(),
     cutlery: z.number().int().min(0).max(20),
+    email: z.email("Проверьте почту").max(120).optional(),
   }),
   payment: paymentMethodSchema,
   consent: z.literal(true, { error: "Нужно согласие на обработку персональных данных" }),

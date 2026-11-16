@@ -1,5 +1,6 @@
 import { calculateQuote } from "@/lib/order/calc";
 import { quoteRequestSchema } from "@/lib/order/schemas";
+import { getUser } from "@/server/auth/user";
 import { loadQuoteContext, pointFromToken, scheduleInfo } from "@/server/checkout";
 import { clientIp, isSameOrigin, jsonError } from "@/server/http";
 import { rateLimit } from "@/server/rate-limit";
@@ -19,7 +20,8 @@ export async function POST(request: Request) {
   if (input.addressToken && !address)
     return jsonError(400, "Адрес устарел — выберите его ещё раз", { code: "ADDRESS_EXPIRED" });
 
-  const ctx = await loadQuoteContext(input.items, input.promoCode, now);
-  const quote = calculateQuote({ ...input, point: address }, ctx);
+  const user = await getUser();
+  const ctx = await loadQuoteContext(input.items, input.promoCode, now, user?.id);
+  const quote = calculateQuote({ ...input, point: address, bonusToSpend: input.useBonus ? ctx.bonus?.balance : 0 }, ctx);
   return Response.json({ quote, schedule: await scheduleInfo(now) });
 }

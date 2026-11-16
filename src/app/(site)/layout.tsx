@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { CartAnnouncer } from "@/components/site/CartAnnouncer";
+import { CartSync } from "@/components/site/CartSync";
 import { SiteMobileCartBar } from "@/components/site/SiteChrome";
 import { SiteBottom, SiteTop } from "@/components/site/SiteFrame";
 
@@ -20,6 +21,7 @@ export default function SiteLayout({ children, sheet }: { children: React.ReactN
         <SiteMobileCartBar />
       </Suspense>
       <CartAnnouncer />
+      <CartSync />
     </>
   );
 }

@@ -3,6 +3,9 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import { Checkout } from "@/components/checkout/Checkout";
 import { Eyebrow } from "@/components/ui/Typography";
+import { userAddresses } from "@/server/account";
+import { getUser } from "@/server/auth/user";
+import { receiptsEnabled } from "@/server/payments/yookassa";
 import { getSettings } from "@/server/settings";
 
 export const metadata: Metadata = {
@@ -12,9 +15,32 @@ export const metadata: Metadata = {
 
 async function CheckoutLoader() {
   await connection();
-  const s = await getSettings();
+  const [s, user] = await Promise.all([getSettings(), getUser()]);
+  const addresses = user ? await userAddresses(user.id) : [];
   return (
     <Checkout
+      account={
+        user
+          ? {
+              name: user.name ?? "",
+              phone: user.phone,
+              email: user.email ?? "",
+              bonusBalance: user.bonusBalance,
+              bonusEarnPercent: s.bonusEarnPercent,
+              addresses: addresses.map(({ id, text, token, zone, apartment, entrance, floor, intercom }) => ({
+                id,
+                text,
+                token,
+                zone,
+                apartment,
+                entrance,
+                floor,
+                intercom,
+              })),
+            }
+          : null
+      }
+      receiptEmailRequired={receiptsEnabled()}
       restaurant={{
         addressShort: s.addressShort,
         metro: s.metro,

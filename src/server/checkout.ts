@@ -47,14 +47,19 @@ export async function loadQuoteContext(
   items: QuoteItem[],
   promoCode: string | null | undefined,
   now: Date,
+  /** Вошедший гость: бонусы доступны только ему. */
+  userId?: string | null,
 ): Promise<QuoteContext> {
   const code = promoCode ? normalizePromoCode(promoCode) : "";
-  const [dishes, zones, promo] = await Promise.all([
+  const [dishes, zones, promo, user, settings] = await Promise.all([
     loadDishes([...new Set(items.map((i) => i.dishId))]),
     getZones(),
     code ? db.promoCode.findUnique({ where: { code } }) : Promise.resolve(null),
+    userId ? db.user.findUnique({ where: { id: userId }, select: { bonusBalance: true } }) : Promise.resolve(null),
+    getSettings(),
   ]);
-  return { dishes, zones, promo, now, bonus: null };
+  const bonus = user ? { balance: user.bonusBalance, maxSpendPercent: settings.bonusMaxSpendPercent } : null;
+  return { dishes, zones, promo, now, bonus };
 }
 
 export function pointFromToken(token: string | null | undefined) {

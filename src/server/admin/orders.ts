@@ -109,6 +109,27 @@ export async function changeOrderStatus(orderId: string, to: OrderStatusValue, c
     if (to === "CANCELED") data.cancelReason = cancelReason?.trim() || "Отменён рестораном";
     await tx.order.update({ where: { id: orderId }, data });
 
+    // Отмена: списанные бонусы возвращаются гостю, начисленные за этот заказ — снимаются (по одному разу).
+    if (to === "CANCELED" && order.userId) {
+      if (order.bonusSpent > 0) {
+        const refund = await tx.bonusTransaction.createMany({
+          data: [{ userId: order.userId, orderId, type: "REFUND", amount: order.bonusSpent, comment: `Отмена заказа №${order.number}` }],
+          skipDuplicates: true,
+        });
+        if (refund.count) await tx.user.update({ where: { id: order.userId }, data: { bonusBalance: { increment: order.bonusSpent } } });
+      }
+      if (order.bonusEarned > 0) {
+        const revoke = await tx.bonusTransaction.createMany({
+          data: [{ userId: order.userId, orderId, type: "ADJUST", amount: -order.bonusEarned, comment: `Отмена заказа №${order.number}` }],
+          skipDuplicates: true,
+        });
+        // Баланс не уходит в минус: если бонусы уже потрачены, снимаем сколько есть.
+        if (revoke.count) {
+          await tx.$executeRaw`UPDATE "User" SET "bonusBalance" = GREATEST(0, "bonusBalance" - ${order.bonusEarned}) WHERE "id" = ${order.userId}`;
+        }
+      }
+    }
+
     if (to === "COMPLETED" && order.userId && order.paymentStatus === "NOT_REQUIRED") {
       const settings = await tx.settings.findUnique({ where: { id: 1 }, select: { bonusEarnPercent: true } });
       const amount = bonusForOrder(order, settings?.bonusEarnPercent ?? 0);

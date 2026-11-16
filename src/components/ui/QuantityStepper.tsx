@@ -10,6 +10,8 @@ type QuantityStepperProps = {
   max?: number;
   /** Название позиции для подписей кнопок: «Убрать одну порцию: Том ям». */
   itemName: string;
+  /** Свои подписи кнопок, если речь не о порциях (например, гости в брони). */
+  labels?: { decrement: string; increment: string; group: string };
   size?: "sm" | "md";
   className?: string;
 };
@@ -20,6 +22,7 @@ export function QuantityStepper({
   min = 0,
   max = 99,
   itemName,
+  labels,
   size = "sm",
   className,
 }: QuantityStepperProps) {
@@ -31,14 +34,14 @@ export function QuantityStepper({
     <div
       className={cn("inline-flex items-center rounded-full border border-line-strong bg-surface", className)}
       role="group"
-      aria-label={`Количество: ${itemName}`}
+      aria-label={labels?.group ?? `Количество: ${itemName}`}
     >
       <button
         type="button"
         className={btn}
         onClick={() => onChange(value - 1)}
         disabled={value <= min}
-        aria-label={`Убрать одну порцию: ${itemName}`}
+        aria-label={labels?.decrement ?? `Убрать одну порцию: ${itemName}`}
       >
         <Minus className="size-2" aria-hidden="true" />
       </button>
@@ -50,7 +53,7 @@ export function QuantityStepper({
         className={btn}
         onClick={() => onChange(value + 1)}
         disabled={value >= max}
-        aria-label={`Добавить ещё порцию: ${itemName}`}
+        aria-label={labels?.increment ?? `Добавить ещё порцию: ${itemName}`}
       >
         <Plus className="size-2" aria-hidden="true" />
       </button>

@@ -35,6 +35,29 @@ type QuoteResponse = { quote: QuoteResult; schedule: ScheduleInfo };
 
 type Restaurant = { addressShort: string; metro: string; phoneDisplay: string; phoneE164: string };
 
+type SavedAddressOption = {
+  id: string;
+  text: string;
+  token: string;
+  zone: AddressState["zone"];
+  apartment: string | null;
+  entrance: string | null;
+  floor: string | null;
+  intercom: string | null;
+};
+
+/** Вошедший гость: контакты, сохранённые адреса и бонусы. */
+export type CheckoutAccount = {
+  name: string;
+  phone: string;
+  email: string;
+  bonusBalance: number;
+  bonusEarnPercent: number;
+  addresses: SavedAddressOption[];
+};
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const CONTACTS_KEY = "sumibi.contacts.v1";
 
 /** Контакты прошлого заказа: подставляем, чтобы не вводить заново. */
@@ -97,7 +120,16 @@ function SummaryRow({
   );
 }
 
-export function Checkout({ restaurant }: { restaurant: Restaurant }) {
+export function Checkout({
+  restaurant,
+  account = null,
+  receiptEmailRequired = false,
+}: {
+  restaurant: Restaurant;
+  account?: CheckoutAccount | null;
+  /** Чеки через ЮKassa: для онлайн-оплаты нужна почта покупателя. */
+  receiptEmailRequired?: boolean;
+}) {
   const isClient = useIsClient();
   const router = useRouter();
   const { state, count } = useCart();
@@ -107,8 +139,11 @@ export function Checkout({ restaurant }: { restaurant: Restaurant }) {
   const [details, setDetails] = useState({ apartment: "", entrance: "", floor: "", intercom: "" });
   const [whenKind, setWhenKind] = useState<"asap" | "slot">("asap");
   const [slot, setSlot] = useState("");
-  const [name, setName] = useState(() => savedContacts().name);
-  const [phone, setPhone] = useState(() => savedContacts().phone);
+  const [name, setName] = useState(() => account?.name || savedContacts().name);
+  const [phone, setPhone] = useState(() => account?.phone || savedContacts().phone);
+  const [email, setEmail] = useState(account?.email ?? "");
+  const [useBonus, setUseBonus] = useState(false);
+  const [savedAddressId, setSavedAddressId] = useState<string | null>(null);
   const [comment, setComment] = useState("");
   const [cutlery, setCutlery] = useState(1);
   const [payment, setPayment] = useState<PaymentMethodValue>("CARD_ONLINE");
@@ -128,7 +163,7 @@ export function Checkout({ restaurant }: { restaurant: Restaurant }) {
     [state.lines],
   );
   const addressToken = type === "DELIVERY" ? address.token : null;
-  const quoteKey = JSON.stringify({ items, type, addressToken, promoCode });
+  const quoteKey = JSON.stringify({ items, type, addressToken, promoCode, useBonus });
 
   // Пересчёт на сервере при любом изменении корзины, способа получения, адреса или промокода.
   useEffect(() => {
@@ -236,6 +271,8 @@ export function Checkout({ restaurant }: { restaurant: Restaurant }) {
     if (!name.trim()) next.name = "Как к вам обращаться?";
     if (!toE164(phone)) next.phone = "Нужно 10 цифр после +7";
     if (!consent) next.consent = "Нужно ваше согласие";
+    if ((payment === "CARD_ONLINE" || payment === "SBP") && receiptEmailRequired && !EMAIL_RE.test(email.trim()))
+      next.email = "Укажите почту — пришлём на неё чек";
     setErrors(next);
     return next;
   };
@@ -263,7 +300,8 @@ export function Checkout({ restaurant }: { restaurant: Restaurant }) {
           promoCode,
           addressDetails: type === "DELIVERY" ? details : undefined,
           when: effectiveWhen === "asap" ? { kind: "asap" } : { kind: "slot", slot: effectiveSlot },
-          customer: { name, phone, comment, cutlery },
+          customer: { name, phone, comment, cutlery, email: email.trim() || undefined },
+          useBonus,
           payment,
           consent,
         }),
@@ -396,10 +434,44 @@ export function Checkout({ restaurant }: { restaurant: Restaurant }) {
 
           {type === "DELIVERY" ? (
             <div className="flex flex-col gap-2">
+              {account?.addresses.length ? (
+                <fieldset className="flex min-w-0 flex-col gap-1">
+                  <legend className="mb-0.5 text-sm font-medium text-fg">Мои адреса</legend>
+                  <div className="flex flex-wrap gap-1">
+                    {account.addresses.map((a) => (
+                      <button
+                        key={a.id}
+                        type="button"
+                        aria-pressed={savedAddressId === a.id}
+                        onClick={() => {
+                          setSavedAddressId(a.id);
+                          setAddress({ text: a.text, token: a.token, zone: a.zone, error: null, outOfZone: !a.zone });
+                          setDetails({
+                            apartment: a.apartment ?? "",
+                            entrance: a.entrance ?? "",
+                            floor: a.floor ?? "",
+                            intercom: a.intercom ?? "",
+                          });
+                          setErrors((e) => ({ ...e, address: "" }));
+                        }}
+                        className={cn(
+                          "inline-flex min-h-5.5 max-w-full items-center rounded-full border px-1.5 text-left text-sm transition-colors duration-150",
+                          savedAddressId === a.id
+                            ? "border-fg bg-fg font-semibold text-canvas"
+                            : "border-line-strong text-fg hover:border-fg",
+                        )}
+                      >
+                        <span className="truncate">{a.text}</span>
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
+              ) : null}
               <AddressField
                 value={address}
                 onChange={(a) => {
                   setAddress(a);
+                  setSavedAddressId(null);
                   setErrors((e) => ({ ...e, address: "" }));
                 }}
                 error={errors.address || null}
@@ -572,6 +644,22 @@ export function Checkout({ restaurant }: { restaurant: Restaurant }) {
               onChange={() => setPayment("CASH")}
             />
           </fieldset>
+          {receiptEmailRequired && online ? (
+            <TextField
+              id="email"
+              label="Почта для чека"
+              type="email"
+              autoComplete="email"
+              inputMode="email"
+              value={email}
+              error={errors.email}
+              hint="Электронный чек придёт на эту почту"
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setErrors((er) => ({ ...er, email: "" }));
+              }}
+            />
+          ) : null}
         </Section>
       </div>
 
@@ -626,13 +714,31 @@ export function Checkout({ restaurant }: { restaurant: Restaurant }) {
               {quote.promo.message}
             </p>
           ) : null}
-          <p className="text-sm text-fg-muted">
-            Бонусы можно списать после{" "}
-            <Link href="/account" className="font-semibold text-fg underline-offset-4 hover:underline">
-              входа по номеру
-            </Link>
-            .
-          </p>
+          {account ? (
+            account.bonusBalance > 0 ? (
+              <Checkbox
+                checked={useBonus}
+                onChange={(e) => setUseBonus(e.target.checked)}
+                label={`Списать бонусы`}
+                description={
+                  useBonus && quote
+                    ? `Спишем ${quote.bonusSpent / 100} из ${account.bonusBalance / 100}`
+                    : `Доступно ${account.bonusBalance / 100} — 1 бонус = 1 ₽`
+                }
+              />
+            ) : (
+              <p className="text-sm text-fg-muted">
+                С этого заказа начислим {account.bonusEarnPercent} % бонусами — их можно списать в следующий раз.
+              </p>
+            )
+          ) : (
+            <p className="text-sm text-fg-muted">
+              <Link href="/account" className="font-semibold text-fg underline-offset-4 hover:underline">
+                Войдите по номеру
+              </Link>
+              , чтобы копить и списывать бонусы.
+            </p>
+          )}
         </div>
 
         <dl
@@ -659,6 +765,7 @@ export function Checkout({ restaurant }: { restaurant: Restaurant }) {
           {quote?.discount ? (
             <SummaryRow label={`Промокод ${quote.promo?.code ?? ""}`} value={`−${formatRub(quote.discount)}`} accent />
           ) : null}
+          {quote?.bonusSpent ? <SummaryRow label="Бонусами" value={`−${formatRub(quote.bonusSpent)}`} accent /> : null}
           <SummaryRow label="К оплате" value={total == null ? "…" : formatRub(total)} strong />
         </dl>
 

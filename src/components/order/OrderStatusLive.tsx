@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Eyebrow } from "@/components/ui/Typography";
 import { cn } from "@/lib/cn";
+import { ReviewForm } from "./ReviewForm";
 
 type Status = "AWAITING_PAYMENT" | "ACCEPTED" | "COOKING" | "DELIVERING" | "READY" | "COMPLETED" | "CANCELED";
 
@@ -21,6 +22,7 @@ export type LiveOrder = {
   deliveringAt: string | null;
   readyAt: string | null;
   completedAt: string | null;
+  hasReview: boolean;
 };
 
 const POLL_MS = 5000;
@@ -47,7 +49,18 @@ function headline(o: LiveOrder): string {
   return steps(o.type).find(([s]) => s === o.status)?.[1] ?? "Принят";
 }
 
-export function OrderStatusLive({ token, initial, timeZone }: { token: string; initial: LiveOrder; timeZone: string }) {
+export function OrderStatusLive({
+  token,
+  initial,
+  timeZone,
+  reviewName,
+}: {
+  token: string;
+  initial: LiveOrder;
+  timeZone: string;
+  /** Имя для подписи отзыва по умолчанию. */
+  reviewName: string;
+}) {
   const [order, setOrder] = useState(initial);
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
@@ -199,6 +212,8 @@ export function OrderStatusLive({ token, initial, timeZone }: { token: string; i
           })}
         </ol>
       ) : null}
+
+      {order.status === "COMPLETED" && !order.hasReview ? <ReviewForm token={token} defaultName={reviewName} /> : null}
     </div>
   );
 }

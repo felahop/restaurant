@@ -114,3 +114,16 @@ export function parseStoredCart(raw: string | null): CartState {
     return EMPTY_CART;
   }
 }
+
+/**
+ * Слияние корзины браузера с корзиной аккаунта при входе. Одинаковые строки не складываются
+ * (это та же корзина, уже синхронизированная раньше), берётся большее количество.
+ */
+export function mergeCarts(a: CartState, b: CartState): CartState {
+  const byKey = new Map<string, CartLine>();
+  for (const l of [...a.lines, ...b.lines]) {
+    const prev = byKey.get(l.key);
+    byKey.set(l.key, prev ? { ...prev, qty: Math.max(prev.qty, l.qty) } : l);
+  }
+  return { version: 1, lines: [...byKey.values()].slice(0, 50) };
+}

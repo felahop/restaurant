@@ -70,6 +70,11 @@ export function receiptConfig() {
   };
 }
 
+/** Нужно ли передавать чек: включено и выбран провайдер ЮKassa (у заглушки чеков нет). */
+export function receiptsEnabled(): boolean {
+  return process.env.YOOKASSA_RECEIPTS === "true" && (process.env.PAYMENT_PROVIDER ?? "mock") === "yookassa";
+}
+
 /** Объект receipt по схеме ReceiptData из спецификации ЮKassa. */
 export function receiptBody(amount: number, receipt: ReceiptInput, cfg: NonNullable<ReturnType<typeof receiptConfig>>) {
   if (receiptSum(receipt.lines) !== amount) throw new Error("Сумма позиций чека не совпадает с суммой платежа");

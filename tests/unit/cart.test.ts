@@ -80,3 +80,16 @@ describe("чтение сохранённой корзины", () => {
     expect(parsed.lines[0]?.qty).toBe(MAX_LINE_QTY);
   });
 });
+
+describe("слияние корзин при входе", async () => {
+  const { mergeCarts } = await import("@/lib/cart/core");
+  const line = (key: string, qty: number) => ({ key, dishId: key, slug: key, name: key, unitPrice: 100, qty, modifiers: [] });
+  it("одинаковые строки не удваиваются, новые добавляются", () => {
+    const merged = mergeCarts({ version: 1, lines: [line("a", 2), line("b", 1)] }, { version: 1, lines: [line("a", 1), line("c", 3)] });
+    expect(merged.lines.map((l) => [l.key, l.qty])).toEqual([
+      ["a", 2],
+      ["b", 1],
+      ["c", 3],
+    ]);
+  });
+});

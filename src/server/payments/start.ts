@@ -4,11 +4,11 @@ import { buildReceiptLines } from "@/lib/payments/receipt";
 import { db } from "@/server/db";
 import { getPaymentProvider, siteUrl } from "./index";
 import type { ReceiptInput } from "./types";
-import { receiptConfig } from "./yookassa";
+import { receiptConfig, receiptsEnabled } from "./yookassa";
 
 /** Чек для платежа, если включены «Чеки от ЮKassa» (YOOKASSA_RECEIPTS=true). */
 async function receiptFor(orderId: string): Promise<ReceiptInput | undefined> {
-  if (!receiptConfig()) return undefined;
+  if (!receiptsEnabled() || !receiptConfig()) return undefined;
   const order = await db.order.findUniqueOrThrow({
     where: { id: orderId },
     select: {

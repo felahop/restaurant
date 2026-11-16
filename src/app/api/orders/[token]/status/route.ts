@@ -27,8 +27,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
       completedAt: true,
       canceledAt: true,
       updatedAt: true,
+      review: { select: { id: true } },
     },
   });
   if (!order) return jsonError(404, "Заказ не найден");
-  return Response.json(order, { headers: { "Cache-Control": "no-store" } });
+  const { review, ...rest } = order;
+  return Response.json({ ...rest, hasReview: Boolean(review) }, { headers: { "Cache-Control": "no-store" } });
 }

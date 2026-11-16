@@ -19,7 +19,7 @@ async function OrderDetails({ token }: { token: string }) {
   if (!/^[A-Za-z0-9_-]{20,64}$/.test(token)) notFound();
   const order = await db.order.findUnique({
     where: { publicToken: token },
-    include: { items: { include: { modifiers: true } }, zone: true },
+    include: { items: { include: { modifiers: true } }, zone: true, review: { select: { id: true } } },
   });
   if (!order) notFound();
   const settings = await getSettings();
@@ -45,11 +45,17 @@ async function OrderDetails({ token }: { token: string }) {
     deliveringAt: iso(order.deliveringAt),
     readyAt: iso(order.readyAt),
     completedAt: iso(order.completedAt),
+    hasReview: Boolean(order.review),
   };
 
   return (
     <div className="flex flex-col gap-3">
-      <OrderStatusLive token={token} initial={live} timeZone={settings.timezone} />
+      <OrderStatusLive
+        token={token}
+        initial={live}
+        timeZone={settings.timezone}
+        reviewName={order.customerName.split(/\s+/)[0] ?? ""}
+      />
       <div className="flex flex-col gap-1">
         <p className="text-lead text-fg-muted">
           {order.type === "DELIVERY" ? `Доставка: ${order.addressText}` : `Самовывоз: ${settings.addressShort}`}

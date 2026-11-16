@@ -18,10 +18,12 @@ export type OrderNotice = {
 };
 
 export type ReservationNotice = { whenLabel: string; guests: number; adminUrl: string };
+export type MessageNotice = { adminUrl: string };
 
 export interface Notifier {
   newOrder(n: OrderNotice): Promise<void>;
   newReservation(n: ReservationNotice): Promise<void>;
+  newMessage(n: MessageNotice): Promise<void>;
 }
 
 function orderText(n: OrderNotice) {
@@ -38,12 +40,19 @@ function reservationText(n: ReservationNotice) {
   return [`📅 Новая бронь`, `${n.whenLabel} · гостей: ${n.guests}`, n.adminUrl].join("\n");
 }
 
+function messageText(n: MessageNotice) {
+  return [`✉️ Новое сообщение с сайта`, n.adminUrl].join("\n");
+}
+
 class ConsoleNotifier implements Notifier {
   async newOrder(n: OrderNotice) {
     console.info(`[notify] ${orderText(n).replace(/\n/g, " | ")}`);
   }
   async newReservation(n: ReservationNotice) {
     console.info(`[notify] ${reservationText(n).replace(/\n/g, " | ")}`);
+  }
+  async newMessage(n: MessageNotice) {
+    console.info(`[notify] ${messageText(n).replace(/\n/g, " | ")}`);
   }
 }
 
@@ -69,6 +78,9 @@ class TelegramNotifier implements Notifier {
   }
   newReservation(n: ReservationNotice) {
     return this.send(reservationText(n));
+  }
+  newMessage(n: MessageNotice) {
+    return this.send(messageText(n));
   }
 }
 

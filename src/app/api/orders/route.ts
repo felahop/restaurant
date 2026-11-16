@@ -4,15 +4,19 @@ import { calculateQuote } from "@/lib/order/calc";
 import { isValidSlot } from "@/lib/order/schedule";
 import { ONLINE_METHODS, orderRequestSchema } from "@/lib/order/schemas";
 import { toE164 } from "@/lib/phone";
+import { rememberAddress } from "@/server/account";
+import { getUser } from "@/server/auth/user";
 import { loadQuoteContext, pointFromToken, scheduleInfo } from "@/server/checkout";
 import { db } from "@/server/db";
 import { clientIp, isSameOrigin, jsonError } from "@/server/http";
 import { notifyOrderIfDue } from "@/server/order-notify";
 import { startPayment } from "@/server/payments/start";
+import { receiptsEnabled } from "@/server/payments/yookassa";
 import { rateLimit } from "@/server/rate-limit";
 import { getSettings } from "@/server/settings";
 
 class PromoExhaustedError extends Error {}
+class BonusChangedError extends Error {}
 
 
 /** Оформление заказа. Суммы пересчитываются на сервере по ценам из базы. */
@@ -65,13 +69,23 @@ export async function POST(request: Request) {
     return jsonError(400, "Выберите адрес доставки из подсказок", { code: "ADDRESS_REQUIRED" });
   }
 
-  // Суммы
-  const ctx = await loadQuoteContext(input.items, input.promoCode, now);
-  const quote = calculateQuote({ ...input, point: address }, ctx);
+  // Почта для чека (чеки через ЮKassa)
+  const online = ONLINE_METHODS.includes(input.payment);
+  const user = await getUser();
+  const email = input.customer.email || user?.email || null;
+  if (online && receiptsEnabled() && !email) {
+    return jsonError(400, "Укажите почту — пришлём на неё чек", { code: "EMAIL_REQUIRED" });
+  }
+
+  // Суммы (бонусы — только вошедшему гостю)
+  const ctx = await loadQuoteContext(input.items, input.promoCode, now, user?.id);
+  const quote = calculateQuote(
+    { ...input, point: address, bonusToSpend: input.useBonus ? ctx.bonus?.balance : 0 },
+    ctx,
+  );
   if (!quote.canOrder)
     return jsonError(422, quote.issues[0]?.message ?? "Заказ нельзя оформить", { issues: quote.issues });
 
-  const online = ONLINE_METHODS.includes(input.payment);
   const promoApplied = quote.promo?.applied ? quote.promo : null;
   const publicToken = randomBytes(24).toString("base64url");
 
@@ -85,7 +99,14 @@ export async function POST(request: Request) {
           WHERE "id" = ${promoApplied.promoId} AND ("usageLimit" IS NULL OR "usedCount" < "usageLimit")`;
         if (updated === 0) throw new PromoExhaustedError();
       }
-      return tx.order.create({
+      // Бонусы списываем атомарно: баланс не уйдёт в минус даже при двух заказах одновременно.
+      if (user && quote.bonusSpent > 0) {
+        const spent = await tx.$executeRaw`
+          UPDATE "User" SET "bonusBalance" = "bonusBalance" - ${quote.bonusSpent}
+          WHERE "id" = ${user.id} AND "bonusBalance" >= ${quote.bonusSpent}`;
+        if (spent === 0) throw new BonusChangedError();
+      }
+      const created = await tx.order.create({
         data: {
           publicToken,
           type: input.type,
@@ -93,6 +114,8 @@ export async function POST(request: Request) {
           acceptedAt: online ? null : now,
           customerName: input.customer.name,
           customerPhone: toE164(input.customer.phone)!,
+          customerEmail: email,
+          userId: user?.id ?? null,
           comment: input.customer.comment || null,
           cutlery: input.customer.cutlery,
           addressText: address?.value ?? null,
@@ -135,14 +158,43 @@ export async function POST(request: Request) {
         },
         select: { id: true, number: true, publicToken: true, total: true, paymentMethod: true },
       });
+      if (user && quote.bonusSpent > 0) {
+        await tx.bonusTransaction.create({
+          data: { userId: user.id, orderId: created.id, type: "SPEND", amount: -quote.bonusSpent, comment: `Заказ №${created.number}` },
+        });
+      }
+      return created;
     });
   } catch (e) {
+    if (e instanceof BonusChangedError) {
+      return jsonError(409, "Бонусов стало меньше — проверьте сумму и оформите заказ ещё раз.", { code: "BONUS_CHANGED" });
+    }
     if (e instanceof PromoExhaustedError) {
       return jsonError(409, "Промокод только что закончился. Уберите его и оформите заказ ещё раз.", {
         code: "PROMO_EXHAUSTED",
       });
     }
     throw e;
+  }
+
+  // Имя из первого заказа сохраняем в профиль — дальше оно подставится само.
+  if (user && !user.name) {
+    after(() => db.user.update({ where: { id: user.id }, data: { name: input.customer.name } }).then(() => undefined));
+  }
+
+  // Адрес доставки запоминается в кабинете.
+  if (user && address) {
+    after(() =>
+      rememberAddress(user.id, {
+        text: address.value,
+        lat: address.lat,
+        lng: address.lng,
+        apartment: input.addressDetails?.apartment || null,
+        entrance: input.addressDetails?.entrance || null,
+        floor: input.addressDetails?.floor || null,
+        intercom: input.addressDetails?.intercom || null,
+      }),
+    );
   }
 
   // Ресторан узнаёт о заказе сразу, о предзаказе — за N минут до времени (см. src/server/order-notify.ts).
